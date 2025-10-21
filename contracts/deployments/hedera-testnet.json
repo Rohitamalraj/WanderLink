@@ -1,0 +1,11 @@
+{
+  "network": "hedera-testnet",
+  "chainId": 296,
+  "contracts": {
+    "TripEscrow": "0x26aA9a1F65FFD5925cF4651E9901250AB2A159Ee",
+    "ReputationSBT": "0x574b3220e675F849B0B63ADd1B017E59F8D60ee5",
+    "TripNFT": "0x177C4A0828d072f2c06BE25140cD70fb0E5C8316"
+  },
+  "deployer": "0x8D582459C80cE1c5a4C19646F40114d7e7467101",
+  "deployedAt": "2025-10-21T08:05:17.651Z"
+}

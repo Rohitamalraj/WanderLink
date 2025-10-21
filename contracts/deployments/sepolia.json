@@ -1,0 +1,11 @@
+{
+  "network": "sepolia",
+  "chainId": 11155111,
+  "contracts": {
+    "TripEscrow": "0x780A2b692a9640572E8D39263FB4E86840cB492d",
+    "ReputationSBT": "0xC09E6B4Aa41CCfcbBD9B344ADf39B0765600404D",
+    "TripNFT": "0x8e983F9BF859CE4d6Fe442B8014736f938106bCd"
+  },
+  "deployer": "0x927C766598a194f66C5c1fa00e05eED7E53562cb",
+  "deployedAt": "2025-10-21T08:06:33.531Z"
+}
