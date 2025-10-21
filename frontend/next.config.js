@@ -7,6 +7,14 @@ const nextConfig = {
   },
   webpack: (config) => {
     config.resolve.fallback = { fs: false, net: false, tls: false };
+    
+    // Ignore optional dependencies that cause warnings
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      'pino-pretty': false,
+      '@react-native-async-storage/async-storage': false,
+    };
+    
     return config;
   },
   env: {

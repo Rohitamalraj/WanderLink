@@ -1,0 +1,26 @@
+# WanderLink Frontend - Quick Start
+
+## Run this to get started:
+
+```bash
+cd frontend
+npm install lucide-react tailwind-merge tailwindcss-animate
+npm run dev
+```
+
+Then visit: http://localhost:3000
+
+## What you'll see:
+- ✅ Home page with neobrutalism design
+- ✅ Animated hero section
+- ✅ Features grid
+- ✅ Featured trips
+- ✅ Navigate to /trips for listing page
+
+## Design is 100% matching social-media-manager style!
+- Bold 4px black borders
+- Hard shadows with offset
+- Vibrant orange/pink/purple gradients
+- Font-black typography
+- Rounded corners (2xl, 3xl)
+- Hover animations (translate + shadow)

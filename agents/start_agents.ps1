@@ -1,0 +1,42 @@
+# WanderLink Agents - Start All Services
+# Run this script to start all agents and the service
+
+Write-Host ""
+Write-Host "=" -NoNewline; for ($i=0; $i -lt 59; $i++) { Write-Host "=" -NoNewline }; Write-Host ""
+Write-Host "🚀 Starting WanderLink AI Agents System"
+Write-Host "=" -NoNewline; for ($i=0; $i -lt 59; $i++) { Write-Host "=" -NoNewline }; Write-Host ""
+Write-Host ""
+
+# Activate virtual environment
+Write-Host "📦 Activating Python virtual environment..."
+.\venv\Scripts\Activate.ps1
+
+Write-Host ""
+Write-Host "✅ Ready to start agents!"
+Write-Host ""
+Write-Host "📝 You need to run these in SEPARATE terminal windows:"
+Write-Host ""
+Write-Host "Terminal 1 (MatchMaker Agent):"
+Write-Host "  cd d:\WanderLink\agents"
+Write-Host "  .\venv\Scripts\Activate.ps1"
+Write-Host "  python src\matchmaker_agent.py"
+Write-Host ""
+Write-Host "Terminal 2 (Planner Agent):"
+Write-Host "  cd d:\WanderLink\agents"
+Write-Host "  .\venv\Scripts\Activate.ps1"
+Write-Host "  python src\planner_agent.py"
+Write-Host ""
+Write-Host "Terminal 3 (Agent Service):"
+Write-Host "  cd d:\WanderLink\agents"
+Write-Host "  .\venv\Scripts\Activate.ps1"
+Write-Host "  python src\agent_service.py"
+Write-Host ""
+Write-Host "Terminal 4 (Frontend):"
+Write-Host "  cd d:\WanderLink\frontend"
+Write-Host "  npm run dev"
+Write-Host ""
+Write-Host "=" -NoNewline; for ($i=0; $i -lt 59; $i++) { Write-Host "=" -NoNewline }; Write-Host ""
+Write-Host ""
+Write-Host "🎯 Quick Start: Run the test script first!"
+Write-Host "   .\test_agents.ps1"
+Write-Host ""
