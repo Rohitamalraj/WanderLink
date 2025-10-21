@@ -1,13 +1,15 @@
 """
 WanderLink MatchMaker Agent
 Autonomous agent for finding compatible travel groups using Fetch.ai
+Supports both direct messaging and chat protocol
 """
 
-from uagents import Agent, Context, Model
+from uagents import Agent, Context, Model, Protocol
 from typing import List, Dict, Optional
 import json
 from datetime import datetime
 import numpy as np
+from uuid import uuid4
 
 # Define message models
 class TravelPreferences(Model):
@@ -36,8 +38,14 @@ matchmaker = Agent(
     seed="wanderlink_matchmaker_secret_2025"
 )
 
+# Chat protocol for conversational interface
+chat_protocol = Protocol(name="MatchMakerChat", version="1.0")
+
 # Storage for registered travelers
 travelers_pool: Dict[str, TravelPreferences] = {}
+
+# Conversation state storage
+conversation_states: Dict[str, Dict] = {}
 
 @matchmaker.on_event("startup")
 async def introduce(ctx: Context):
@@ -46,7 +54,201 @@ async def introduce(ctx: Context):
     ctx.logger.info("=" * 60)
     ctx.logger.info(f"Agent Name: {matchmaker.name}")
     ctx.logger.info(f"Agent Address: {matchmaker.address}")
+    ctx.logger.info("💬 Chat Protocol: ENABLED")
     ctx.logger.info("=" * 60)
+
+# ============================================================================
+# CHAT PROTOCOL HANDLERS
+# ============================================================================
+
+class ChatMessage(Model):
+    """Chat message model"""
+    session_id: str
+    message: str
+    timestamp: str
+
+class ChatResponse(Model):
+    """Chat response model"""
+    session_id: str
+    message: str
+    timestamp: str
+    data: Optional[Dict] = None
+
+@chat_protocol.on_message(model=ChatMessage)
+async def handle_chat(ctx: Context, sender: str, msg: ChatMessage):
+    """Handle conversational chat for finding travel matches"""
+    ctx.logger.info(f"💬 Chat from {sender[:16]}...: {msg.message[:50]}...")
+    
+    # Get or create conversation state
+    if msg.session_id not in conversation_states:
+        conversation_states[msg.session_id] = {
+            "step": "welcome",
+            "user_id": f"user_{msg.session_id[:8]}",
+            "data": {}
+        }
+    
+    state = conversation_states[msg.session_id]
+    message_lower = msg.message.lower()
+    
+    # Process based on current step
+    if state["step"] == "welcome":
+        response_text = """🤝 **Welcome to WanderLink MatchMaker!**
+
+I'll help you find compatible travel companions.
+
+Tell me about your travel plans:
+• Where do you want to go?
+• When (dates)?
+• Your budget range?
+• What activities interest you?
+• Your travel style?
+
+Example: "Looking for Tokyo trip, Nov 15-22, $1000-2000 budget, love culture and food, social traveler"
+
+What are you looking for?"""
+        state["step"] = "collecting"
+    
+    elif state["step"] == "collecting":
+        # Extract preferences
+        prefs = extract_travel_preferences(msg.message, state["user_id"])
+        
+        if prefs:
+            # Store in traveler pool
+            travelers_pool[state["user_id"]] = prefs
+            
+            # Find matches
+            matches = find_compatible_matches(ctx, state["user_id"], prefs)
+            
+            if matches:
+                response_text = f"""✨ **Found {len(matches)} Compatible Travel Matches!**
+
+"""
+                for i, match in enumerate(matches[:3], 1):
+                    response_text += f"""**Match #{i}** - {match['compatibility']}% Compatible
+📍 Destination: {match['destination']}
+💰 Budget: ${match['estimated_cost']}
+🎯 Confidence: {match['confidence']}
+
+"""
+                
+                response_text += """
+
+Want to see more matches or refine your search?"""
+                state["data"]["matches"] = matches
+            else:
+                response_text = """😔 No matches found yet, but you're now in our traveler pool!
+
+As more travelers join with similar preferences, we'll notify you.
+
+Would you like to:
+1. Adjust your preferences
+2. Browse all available trips
+3. Create your own trip"""
+            
+            state["step"] = "results"
+        else:
+            response_text = """I need more details! Please include:
+
+• **Destination**: Where?
+• **Dates**: When?
+• **Budget**: How much?
+• **Interests**: What activities?
+• **Style**: How do you travel?
+
+Example: "Bali Dec 1-10, $800-1500, beach and wellness, relaxed pace" """
+    
+    elif state["step"] == "results":
+        if "more" in message_lower or "show" in message_lower:
+            matches = state["data"].get("matches", [])
+            response_text = f"""Here are all {len(matches)} matches:
+
+"""
+            for i, match in enumerate(matches, 1):
+                response_text += f"{i}. {match['destination']} - {match['compatibility']}% match\n"
+            
+            response_text += "\nWant to search again? Just tell me your new preferences!"
+        else:
+            response_text = "Let's find another match! What are you looking for?"
+            state["step"] = "collecting"
+    
+    else:
+        response_text = "Ready to find travel companions? Tell me your plans!"
+        state["step"] = "collecting"
+    
+    # Send response
+    response = ChatResponse(
+        session_id=msg.session_id,
+        message=response_text,
+        timestamp=datetime.utcnow().isoformat()
+    )
+    
+    await ctx.send(sender, response)
+
+def extract_travel_preferences(message: str, user_id: str) -> Optional[TravelPreferences]:
+    """Extract travel preferences from natural language"""
+    import re
+    
+    message_lower = message.lower()
+    
+    # Extract destination
+    destinations = ['tokyo', 'paris', 'london', 'bali', 'rome', 'barcelona', 'dubai', 'bangkok']
+    destination = None
+    for dest in destinations:
+        if dest in message_lower:
+            destination = dest.title()
+            break
+    
+    if not destination:
+        return None
+    
+    # Extract dates (simple pattern)
+    start_date = "2025-11-15"  # Default
+    end_date = "2025-11-22"
+    
+    # Extract budget
+    budget_match = re.search(r'\$?(\d+)[-\s]*(?:to|-)?\s*\$?(\d+)', message)
+    if budget_match:
+        budget_min = float(budget_match.group(1))
+        budget_max = float(budget_match.group(2))
+    else:
+        budget_min, budget_max = 500, 2000
+    
+    # Extract interests
+    interest_keywords = ['culture', 'adventure', 'food', 'beach', 'nightlife', 'shopping', 'nature']
+    activities = {}
+    for interest in interest_keywords:
+        if interest in message_lower:
+            activities[interest] = 0.9
+        else:
+            activities[interest] = 0.3
+    
+    # Extract travel style
+    style = {}
+    if any(word in message_lower for word in ['luxury', 'high-end', 'fancy']):
+        style['luxury'] = 0.9
+    else:
+        style['luxury'] = 0.4
+    
+    if any(word in message_lower for word in ['social', 'group', 'meet people']):
+        style['social'] = 0.9
+    else:
+        style['social'] = 0.5
+    
+    # Create preferences object
+    return TravelPreferences(
+        user_id=user_id,
+        destination=destination,
+        start_date=start_date,
+        end_date=end_date,
+        budget_min=budget_min,
+        budget_max=budget_max,
+        activities=activities,
+        travel_style=style
+    )
+
+# ============================================================================
+# DIRECT MESSAGE HANDLERS
+# ============================================================================
 
 @matchmaker.on_message(model=MatchRequest)
 async def handle_match_request(ctx: Context, sender: str, msg: MatchRequest):
@@ -199,8 +401,12 @@ def find_compatible_matches(ctx: Context, user_id: str, preferences: TravelPrefe
     
     return matches[:5]  # Return top 5 matches
 
+# Include chat protocol
+matchmaker.include(chat_protocol, publish_manifest=True)
+
 if __name__ == "__main__":
     print("\n" + "=" * 60)
     print("🚀 Starting WanderLink MatchMaker Agent...")
+    print("💬 Chat Protocol: ENABLED")
     print("=" * 60 + "\n")
     matchmaker.run()
