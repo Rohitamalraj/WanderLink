@@ -1,347 +1,199 @@
 """
 WanderLink User Agent
-Individual autonomous agent for each user that manages their travel preferences
-and communicates with matchmaker agent to find compatible trips
+Autonomous agent for managing user profiles and preferences
 """
 
 from uagents import Agent, Context, Model
 from typing import List, Dict, Optional
-import os
-from dotenv import load_dotenv
-from supabase import create_client, Client
 import json
 from datetime import datetime
 
-# Load environment variables
-load_dotenv()
-
-# Supabase client
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
-
-# ============================================================================
-# MESSAGE MODELS
-# ============================================================================
-
-class UserPreferences(Model):
-    """User travel preferences"""
+# Message models
+class UserProfile(Model):
     user_id: str
     name: str
     email: str
     age: Optional[int]
-    gender: Optional[str]
     location: Optional[str]
-    
-    # Travel preferences
-    preferred_destinations: List[str]
-    budget_min: float
-    budget_max: float
-    travel_pace: str  # relaxed, moderate, packed
-    group_size_preference: Optional[str]
-    
-    # Interests
-    interests: List[str]
-    
-    # Additional
-    accommodation_types: List[str]
-    dietary_restrictions: List[str]
-    languages_spoken: List[str]
-    travel_experience: str  # beginner, intermediate, expert
-    smoking_preference: Optional[str]
-    drinking_preference: Optional[str]
+    bio: Optional[str]
 
-class MatchRequest(Model):
-    """Request to find matching trips"""
+class ProfileRequest(Model):
     user_id: str
-    agent_address: str
+
+class ProfileResponse(Model):
+    profile: Dict
+    travel_history: List[Dict]
     preferences: Dict
-    search_criteria: Optional[Dict]
-
-class MatchResponse(Model):
-    """Response with matching trips"""
-    user_id: str
-    matches: List[Dict]
-    total_matches: int
     message: str
 
-class JoinTripRequest(Model):
-    """Request to join a specific trip"""
+class UpdateProfileRequest(Model):
     user_id: str
-    trip_id: str
-    user_message: Optional[str]
-    preferences: Dict
+    updates: Dict
 
-class JoinTripResponse(Model):
-    """Response to join request"""
-    success: bool
-    match_request_id: str
-    compatibility_score: float
-    message: str
+# Create user agent
+# For Agentverse deployment: remove port and endpoint
+user_agent = Agent(
+    name="wanderlink_user",
+    seed="wanderlink_user_secret_2025"
+)
 
-# ============================================================================
-# USER AGENT CLASS
-# ============================================================================
+# Storage for user profiles
+user_profiles: Dict[str, UserProfile] = {}
+user_travel_history: Dict[str, List[Dict]] = {}
+user_preferences: Dict[str, Dict] = {}
 
-class WanderLinkUserAgent:
-    """User agent manager"""
+@user_agent.on_event("startup")
+async def introduce(ctx: Context):
+    ctx.logger.info("=" * 60)
+    ctx.logger.info("👤 WanderLink User Agent Started!")
+    ctx.logger.info("=" * 60)
+    ctx.logger.info(f"Agent Name: {user_agent.name}")
+    ctx.logger.info(f"Agent Address: {user_agent.address}")
+    ctx.logger.info("=" * 60)
+
+@user_agent.on_message(model=ProfileRequest)
+async def handle_profile_request(ctx: Context, sender: str, msg: ProfileRequest):
+    """Retrieve user profile and travel history"""
+    ctx.logger.info(f"📨 Received profile request for user: {msg.user_id}")
     
-    def __init__(self, user_id: str, user_seed: str):
-        self.user_id = user_id
-        self.agent = Agent(
-            name=f"wanderlink_user_{user_id[:8]}",
-            seed=user_seed,
-            port=8100 + hash(user_id) % 900,  # Dynamic port based on user_id
-            endpoint=[f"http://localhost:{8100 + hash(user_id) % 900}/submit"]
+    # Get user data
+    profile = user_profiles.get(msg.user_id)
+    travel_history = user_travel_history.get(msg.user_id, [])
+    preferences = user_preferences.get(msg.user_id, {})
+    
+    if profile:
+        response = ProfileResponse(
+            profile={
+                "user_id": profile.user_id,
+                "name": profile.name,
+                "email": profile.email,
+                "age": profile.age,
+                "location": profile.location,
+                "bio": profile.bio
+            },
+            travel_history=travel_history,
+            preferences=preferences,
+            message=f"Profile found for {msg.user_id}"
         )
-        
-        # Setup handlers
-        self.setup_handlers()
+        ctx.logger.info(f"✅ Profile sent for {msg.user_id}")
+    else:
+        response = ProfileResponse(
+            profile={},
+            travel_history=[],
+            preferences={},
+            message=f"No profile found for {msg.user_id}"
+        )
+        ctx.logger.info(f"⚠️  No profile found for {msg.user_id}")
     
-    def setup_handlers(self):
-        """Setup agent message handlers"""
-        
-        @self.agent.on_event("startup")
-        async def startup(ctx: Context):
-            ctx.logger.info("=" * 60)
-            ctx.logger.info(f"👤 WanderLink User Agent Started!")
-            ctx.logger.info(f"User ID: {self.user_id[:16]}...")
-            ctx.logger.info(f"Agent Address: {self.agent.address}")
-            ctx.logger.info("=" * 60)
-            
-            # Update agent state in database
-            if supabase:
-                try:
-                    supabase.table('user_agent_states').upsert({
-                        'user_id': self.user_id,
-                        'agent_address': str(self.agent.address),
-                        'is_active': True,
-                        'last_active_at': datetime.utcnow().isoformat()
-                    }).execute()
-                except Exception as e:
-                    ctx.logger.error(f"Failed to update agent state: {e}")
-        
-        @self.agent.on_message(model=MatchRequest)
-        async def handle_match_request(ctx: Context, sender: str, msg: MatchRequest):
-            """Handle match request - forward to matchmaker agent"""
-            ctx.logger.info(f"📨 Received match request for user {msg.user_id[:8]}...")
-            
-            # Get user preferences from database
-            if supabase:
-                try:
-                    result = supabase.table('user_preferences')\
-                        .select('*')\
-                        .eq('user_id', msg.user_id)\
-                        .single()\
-                        .execute()
-                    
-                    preferences = result.data if result.data else msg.preferences
-                    
-                    # Forward to matchmaker agent
-                    matchmaker_address = "agent1q2e9kfdrxfa5dxn6zeyw47287ca36cdur9xevhmdzzfmf4cwlmahv42sqph"  # Matchmaker agent address
-                    
-                    # Prepare match request for matchmaker
-                    match_data = {
-                        'user_id': msg.user_id,
-                        'destination': preferences.get('preferred_destinations', [])[0] if preferences.get('preferred_destinations') else 'any',
-                        'budget': {
-                            'min': preferences.get('budget_min', 0),
-                            'max': preferences.get('budget_max', 10000)
-                        },
-                        'interests': preferences.get('interests', []),
-                        'pace': preferences.get('travel_pace', 'moderate'),
-                        'search_criteria': msg.search_criteria or {}
-                    }
-                    
-                    ctx.logger.info(f"🔄 Forwarding to matchmaker agent...")
-                    # In production, send to actual matchmaker agent
-                    # await ctx.send(matchmaker_address, match_data)
-                    
-                    # For now, generate mock matches
-                    matches = await self.generate_mock_matches(ctx, match_data)
-                    
-                    # Save matches to database
-                    for match in matches:
-                        try:
-                            supabase.table('match_requests').insert({
-                                'user_id': msg.user_id,
-                                'trip_id': match['trip_id'],
-                                'compatibility_score': match['compatibility_score'],
-                                'match_factors': json.dumps(match['compatibility']),
-                                'status': 'pending'
-                            }).execute()
-                        except Exception as e:
-                            ctx.logger.error(f"Failed to save match: {e}")
-                    
-                    # Send response back
-                    response = MatchResponse(
-                        user_id=msg.user_id,
-                        matches=matches,
-                        total_matches=len(matches),
-                        message=f"Found {len(matches)} matching trips"
-                    )
-                    
-                    await ctx.send(sender, response)
-                    
-                except Exception as e:
-                    ctx.logger.error(f"Error processing match request: {e}")
-                    # Send error response
-                    response = MatchResponse(
-                        user_id=msg.user_id,
-                        matches=[],
-                        total_matches=0,
-                        message=f"Error: {str(e)}"
-                    )
-                    await ctx.send(sender, response)
-        
-        @self.agent.on_message(model=JoinTripRequest)
-        async def handle_join_request(ctx: Context, sender: str, msg: JoinTripRequest):
-            """Handle request to join a specific trip"""
-            ctx.logger.info(f"🎫 Join request for trip {msg.trip_id}")
-            
-            # Calculate compatibility score
-            # In production, this would query the matchmaker agent
-            compatibility_score = 85.5  # Mock score
-            
-            # Save join request to database
-            if supabase:
-                try:
-                    result = supabase.table('match_requests').insert({
-                        'user_id': msg.user_id,
-                        'trip_id': msg.trip_id,
-                        'compatibility_score': compatibility_score,
-                        'match_factors': json.dumps(msg.preferences),
-                        'status': 'pending',
-                        'user_message': msg.user_message
-                    }).execute()
-                    
-                    match_request_id = result.data[0]['id'] if result.data else 'unknown'
-                    
-                    response = JoinTripResponse(
-                        success=True,
-                        match_request_id=match_request_id,
-                        compatibility_score=compatibility_score,
-                        message="Join request submitted successfully! The host will review your profile."
-                    )
-                    
-                    await ctx.send(sender, response)
-                    
-                except Exception as e:
-                    ctx.logger.error(f"Failed to save join request: {e}")
-                    response = JoinTripResponse(
-                        success=False,
-                        match_request_id='',
-                        compatibility_score=0,
-                        message=f"Error: {str(e)}"
-                    )
-                    await ctx.send(sender, response)
-    
-    async def generate_mock_matches(self, ctx: Context, match_data: Dict) -> List[Dict]:
-        """Generate mock matching trips"""
-        # Mock trips data
-        mock_trips = [
-            {
-                'trip_id': 'trip_001',
-                'title': 'Tokyo Adventure',
-                'destination': 'Tokyo',
-                'host': 'Sarah Chen',
-                'dates': {'start': '2025-11-15', 'end': '2025-11-22'},
-                'price': 1200,
-                'group_size': {'current': 3, 'max': 8},
-                'interests': ['culture', 'food', 'photography'],
-                'pace': 'moderate'
-            },
-            {
-                'trip_id': 'trip_002',
-                'title': 'Bali Retreat',
-                'destination': 'Bali',
-                'host': 'Michael Torres',
-                'dates': {'start': '2025-12-01', 'end': '2025-12-10'},
-                'price': 950,
-                'group_size': {'current': 2, 'max': 6},
-                'interests': ['beach', 'wellness', 'nature'],
-                'pace': 'relaxed'
-            },
-            {
-                'trip_id': 'trip_003',
-                'title': 'Iceland Expedition',
-                'destination': 'Iceland',
-                'host': 'Emma Larson',
-                'dates': {'start': '2025-11-20', 'end': '2025-11-28'},
-                'price': 2100,
-                'group_size': {'current': 4, 'max': 10},
-                'interests': ['adventure', 'nature', 'photography'],
-                'pace': 'packed'
-            }
-        ]
-        
-        # Calculate compatibility scores
-        matches = []
-        user_interests = set(match_data.get('interests', []))
-        user_budget = match_data['budget']['max']
-        user_pace = match_data.get('pace', 'moderate')
-        
-        for trip in mock_trips:
-            trip_interests = set(trip['interests'])
-            
-            # Interest match
-            interest_match = len(user_interests.intersection(trip_interests)) / max(len(user_interests), 1)
-            
-            # Budget match
-            budget_match = 1.0 if trip['price'] <= user_budget else max(0, 1 - (trip['price'] - user_budget) / user_budget)
-            
-            # Pace match
-            pace_match = 1.0 if trip['pace'] == user_pace else 0.5
-            
-            # Overall compatibility
-            compatibility_score = (interest_match * 0.4 + budget_match * 0.4 + pace_match * 0.2) * 100
-            
-            if compatibility_score > 50:  # Only include decent matches
-                matches.append({
-                    'trip_id': trip['trip_id'],
-                    'trip': trip,
-                    'compatibility_score': round(compatibility_score, 1),
-                    'compatibility': {
-                        'interests': round(interest_match, 2),
-                        'budget': round(budget_match, 2),
-                        'pace': round(pace_match, 2),
-                        'overall': round(compatibility_score / 100, 2)
-                    }
-                })
-        
-        # Sort by compatibility score
-        matches.sort(key=lambda x: x['compatibility_score'], reverse=True)
-        
-        return matches
-    
-    def run(self):
-        """Run the user agent"""
-        self.agent.run()
+    await ctx.send(sender, response)
 
-# ============================================================================
-# AGENT FACTORY
-# ============================================================================
-
-def create_user_agent(user_id: str, user_seed: str = None) -> WanderLinkUserAgent:
-    """Create a new user agent"""
-    if not user_seed:
-        user_seed = f"wanderlink_user_{user_id}_seed_2025"
+@user_agent.on_message(model=UserProfile)
+async def handle_profile_update(ctx: Context, sender: str, msg: UserProfile):
+    """Create or update user profile"""
+    ctx.logger.info(f"📝 Updating profile for user: {msg.user_id}")
     
-    return WanderLinkUserAgent(user_id, user_seed)
+    # Store profile
+    user_profiles[msg.user_id] = msg
+    
+    # Initialize travel history and preferences if new user
+    if msg.user_id not in user_travel_history:
+        user_travel_history[msg.user_id] = []
+    if msg.user_id not in user_preferences:
+        user_preferences[msg.user_id] = initialize_default_preferences()
+    
+    ctx.logger.info(f"✅ Profile updated for {msg.user_id}")
+    ctx.logger.info(f"👥 Total users: {len(user_profiles)}")
+    
+    # Send confirmation
+    response = ProfileResponse(
+        profile={
+            "user_id": msg.user_id,
+            "name": msg.name,
+            "email": msg.email,
+            "age": msg.age,
+            "location": msg.location,
+            "bio": msg.bio
+        },
+        travel_history=user_travel_history[msg.user_id],
+        preferences=user_preferences[msg.user_id],
+        message=f"Profile updated successfully for {msg.user_id}"
+    )
+    
+    await ctx.send(sender, response)
 
-# ============================================================================
-# MAIN (For testing)
-# ============================================================================
+@user_agent.on_message(model=UpdateProfileRequest)
+async def handle_preference_update(ctx: Context, sender: str, msg: UpdateProfileRequest):
+    """Update user preferences"""
+    ctx.logger.info(f"⚙️  Updating preferences for user: {msg.user_id}")
+    
+    if msg.user_id in user_preferences:
+        # Merge updates
+        user_preferences[msg.user_id].update(msg.updates)
+        ctx.logger.info(f"✅ Preferences updated for {msg.user_id}")
+        message = "Preferences updated successfully"
+    else:
+        # Create new preferences
+        user_preferences[msg.user_id] = msg.updates
+        ctx.logger.info(f"✅ New preferences created for {msg.user_id}")
+        message = "Preferences created successfully"
+    
+    # Get profile for response
+    profile = user_profiles.get(msg.user_id, {})
+    travel_history = user_travel_history.get(msg.user_id, [])
+    
+    response = ProfileResponse(
+        profile=profile.__dict__ if hasattr(profile, '__dict__') else {},
+        travel_history=travel_history,
+        preferences=user_preferences[msg.user_id],
+        message=message
+    )
+    
+    await ctx.send(sender, response)
+
+def initialize_default_preferences() -> Dict:
+    """Initialize default user preferences"""
+    return {
+        "activities": {
+            "culture": 0.5,
+            "adventure": 0.5,
+            "food": 0.5,
+            "beach": 0.5,
+            "nightlife": 0.5,
+            "shopping": 0.5,
+            "nature": 0.5
+        },
+        "travel_style": {
+            "luxury": 0.5,
+            "budget": 0.5,
+            "social": 0.5,
+            "solo": 0.5
+        },
+        "budget_range": {
+            "min": 50,
+            "max": 200
+        },
+        "preferred_destinations": [],
+        "travel_pace": "moderate"
+    }
+
+def calculate_user_stats(user_id: str) -> Dict:
+    """Calculate user travel statistics"""
+    history = user_travel_history.get(user_id, [])
+    
+    total_trips = len(history)
+    total_destinations = len(set([trip.get("destination") for trip in history]))
+    total_days = sum([trip.get("duration", 0) for trip in history])
+    
+    return {
+        "total_trips": total_trips,
+        "unique_destinations": total_destinations,
+        "total_travel_days": total_days,
+        "average_trip_length": total_days / total_trips if total_trips > 0 else 0
+    }
 
 if __name__ == "__main__":
-    import sys
-    
-    if len(sys.argv) < 2:
-        print("Usage: python user_agent.py <user_id>")
-        sys.exit(1)
-    
-    user_id = sys.argv[1]
-    print(f"\n🚀 Starting User Agent for user: {user_id[:16]}...\n")
-    
-    agent = create_user_agent(user_id)
-    agent.run()
+    print("\n" + "=" * 60)
+    print("🚀 Starting WanderLink User Agent...")
+    print("=" * 60 + "\n")
+    user_agent.run()
+

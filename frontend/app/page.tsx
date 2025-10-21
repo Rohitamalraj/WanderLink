@@ -1,14 +1,20 @@
 'use client'
 
 import Link from 'next/link'
-import { MapPin, Users, Shield, Sparkles, ArrowRight, Wallet } from 'lucide-react'
+import { MapPin, Users, Shield, Sparkles, ArrowRight, Zap } from 'lucide-react'
 import { mockTrips } from '@/lib/mock-data'
+import { Header } from '@/components/layout/Header'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function HomePage() {
+  const { user } = useAuth()
   const featuredTrips = mockTrips.slice(0, 3)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-pink-50 to-purple-50">
+      {/* Header with Google Login */}
+      <Header />
+      
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-32">
@@ -20,21 +26,50 @@ export default function HomePage() {
               </span>
             </h1>
             <p className="text-xl sm:text-2xl text-gray-700 font-bold max-w-3xl mx-auto mb-10">
-              Connect with strangers. Travel together. Create memories. All secured by Web3.
+              Connect with travelers worldwide. AI-powered matching. Secure & verified.
             </p>
+            
+            {/* CTA Buttons - Show different buttons based on auth state */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <Link
-                href="/trips"
-                className="bg-black text-white px-8 py-4 rounded-2xl font-black text-lg border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 transition-all"
-              >
-                EXPLORE TRIPS
-              </Link>
-              <Link
-                href="/trips/create"
-                className="bg-white text-black px-8 py-4 rounded-2xl font-black text-lg border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 transition-all"
-              >
-                CREATE TRIP
-              </Link>
+              {user ? (
+                // Logged in - Show trip buttons
+                <>
+                  <Link
+                    href="/trips"
+                    className="bg-black text-white px-8 py-4 rounded-2xl font-black text-lg border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 transition-all"
+                  >
+                    EXPLORE TRIPS
+                  </Link>
+                  <Link
+                    href="/trips/create"
+                    className="bg-white text-black px-8 py-4 rounded-2xl font-black text-lg border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 transition-all"
+                  >
+                    CREATE TRIP
+                  </Link>
+                </>
+              ) : (
+                // Not logged in - Show browse and sign up CTA
+                <>
+                  <Link
+                    href="/trips"
+                    className="bg-white text-black px-8 py-4 rounded-2xl font-black text-lg border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 transition-all"
+                  >
+                    BROWSE TRIPS
+                  </Link>
+                  <div className="text-center">
+                    <p className="text-sm font-bold text-gray-600 mb-3">Sign in to join trips</p>
+                    <div className="inline-block">
+                      {/* Google Login will show in header, this is additional CTA */}
+                      <Link
+                        href="/trips"
+                        className="bg-gradient-to-r from-orange-500 via-pink-500 to-purple-500 text-white px-8 py-4 rounded-2xl font-black text-lg border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 transition-all"
+                      >
+                        GET STARTED
+                      </Link>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -68,9 +103,9 @@ export default function HomePage() {
             color="bg-gradient-to-br from-blue-400 to-cyan-500"
           />
           <FeatureCard
-            icon={<Wallet className="w-8 h-8" />}
-            title="Web3 Native"
-            description="Connect wallet, pay with crypto, earn NFTs"
+            icon={<Zap className="w-8 h-8" />}
+            title="Instant Access"
+            description="Sign in with Google and start matching instantly"
             color="bg-gradient-to-br from-purple-400 to-pink-500"
           />
         </div>

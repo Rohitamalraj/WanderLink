@@ -30,11 +30,10 @@ class MatchResponse(Model):
     message: str
 
 # Create agent with unique seed
+# For Agentverse deployment: remove port and endpoint
 matchmaker = Agent(
     name="wanderlink_matchmaker",
-    seed="wanderlink_matchmaker_secret_2025",
-    port=8001,
-    endpoint=["http://localhost:8001/submit"]
+    seed="wanderlink_matchmaker_secret_2025"
 )
 
 # Storage for registered travelers
@@ -47,7 +46,6 @@ async def introduce(ctx: Context):
     ctx.logger.info("=" * 60)
     ctx.logger.info(f"Agent Name: {matchmaker.name}")
     ctx.logger.info(f"Agent Address: {matchmaker.address}")
-    ctx.logger.info(f"Port: 8001")
     ctx.logger.info("=" * 60)
 
 @matchmaker.on_message(model=MatchRequest)
