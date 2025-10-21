@@ -2,9 +2,11 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Search, MapPin, Users, Calendar, DollarSign, Filter, X } from 'lucide-react'
+import { Search, MapPin, Users, Calendar, DollarSign, Filter, X, Sparkles } from 'lucide-react'
 import { mockTrips } from '@/lib/mock-data'
 import { formatDate, calculateDays } from '@/lib/utils'
+import JoinTripModal, { type UserPreferences } from '@/components/JoinTripModal'
+import MatchResultsModal from '@/components/MatchResultsModal'
 
 export default function TripsPage() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -12,6 +14,121 @@ export default function TripsPage() {
   const [selectedPace, setSelectedPace] = useState<string>('all')
   const [selectedStatus, setSelectedStatus] = useState<string>('all')
   const [showFilters, setShowFilters] = useState(false)
+
+  // Join Trip Modal States
+  const [showJoinModal, setShowJoinModal] = useState(false)
+  const [showMatchResults, setShowMatchResults] = useState(false)
+  const [matches, setMatches] = useState<any[]>([])
+  const [loadingMatches, setLoadingMatches] = useState(false)
+  const [userId, setUserId] = useState<string>('')
+
+  // Initialize user (mock - in production would come from auth)
+  useState(() => {
+    const storedUserId = localStorage.getItem('wanderlink_user_id')
+    if (!storedUserId) {
+      const newUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      localStorage.setItem('wanderlink_user_id', newUserId)
+      setUserId(newUserId)
+    } else {
+      setUserId(storedUserId)
+    }
+  })
+
+  const handleJoinTrip = () => {
+    setShowJoinModal(true)
+  }
+
+  const handleSubmitPreferences = async (preferences: UserPreferences) => {
+    setLoadingMatches(true)
+    setShowMatchResults(true)
+
+    try {
+      // Step 1: Create/Get User
+      const userResponse = await fetch('/api/user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: preferences.email,
+          name: preferences.name,
+        }),
+      })
+      const userData = await userResponse.json()
+      const currentUserId = userData.user.id
+
+      // Save user ID
+      localStorage.setItem('wanderlink_user_id', currentUserId)
+      setUserId(currentUserId)
+
+      // Step 2: Save Preferences
+      await fetch('/api/user/preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUserId,
+          preferences,
+        }),
+      })
+
+      // Step 3: Create User Agent
+      await fetch('/api/user/agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUserId,
+        }),
+      })
+
+      // Step 4: Find Matches
+      const matchResponse = await fetch('/api/trips/find-matches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUserId,
+          searchCriteria: {},
+        }),
+      })
+      const matchData = await matchResponse.json()
+
+      setMatches(matchData.matches || [])
+    } catch (error) {
+      console.error('Error finding matches:', error)
+      alert('Failed to find matches. Please try again.')
+    } finally {
+      setLoadingMatches(false)
+    }
+  }
+
+  const handleJoinSpecificTrip = async (tripId: string) => {
+    try {
+      const response = await fetch('/api/trips/join-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          tripId,
+          message: 'I would love to join this trip!',
+          compatibilityScore: 85,
+          matchFactors: {},
+        }),
+      })
+
+      const data = await response.json()
+      
+      if (response.ok) {
+        alert('Join request sent! The host will review your profile.')
+      } else {
+        alert(data.error || 'Failed to send join request')
+      }
+    } catch (error) {
+      console.error('Error sending join request:', error)
+      alert('Failed to send join request. Please try again.')
+    }
+  }
+
+  const handleSaveMatch = async (tripId: string) => {
+    // Save match to favorites (implement later)
+    alert('Trip saved to your favorites!')
+  }
 
   const filteredTrips = mockTrips.filter((trip) => {
     const matchesSearch =
@@ -52,11 +169,22 @@ export default function TripsPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Page Title */}
-        <div className="mb-8">
-          <h1 className="text-5xl sm:text-6xl font-black mb-4">EXPLORE TRIPS</h1>
-          <p className="text-xl text-gray-700 font-bold">
-            Find your next adventure with {filteredTrips.length} trips available
-          </p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-5xl sm:text-6xl font-black mb-4">EXPLORE TRIPS</h1>
+            <p className="text-xl text-gray-700 font-bold">
+              Find your next adventure with {filteredTrips.length} trips available
+            </p>
+          </div>
+          
+          {/* JOIN A TRIP Button */}
+          <button
+            onClick={handleJoinTrip}
+            className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-8 py-4 rounded-xl font-black border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 transition-all flex items-center gap-2 text-lg"
+          >
+            <Sparkles className="w-6 h-6" />
+            JOIN A TRIP
+          </button>
         </div>
 
         {/* Search Bar */}
@@ -172,6 +300,22 @@ export default function TripsPage() {
           </div>
         )}
       </div>
+
+      {/* Modals */}
+      <JoinTripModal
+        isOpen={showJoinModal}
+        onClose={() => setShowJoinModal(false)}
+        onSubmit={handleSubmitPreferences}
+      />
+
+      <MatchResultsModal
+        isOpen={showMatchResults}
+        onClose={() => setShowMatchResults(false)}
+        matches={matches}
+        loading={loadingMatches}
+        onJoinTrip={handleJoinSpecificTrip}
+        onSaveMatch={handleSaveMatch}
+      />
     </div>
   )
 }
