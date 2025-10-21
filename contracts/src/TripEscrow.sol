@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 
 /**
  * @title TripEscrow
  * @notice Manages escrow for stranger trips with automated enforcement
  * @dev Holds stakes, enforces commitment, handles slashing and rewards
  */
-contract TripEscrow is ReentrancyGuard, AccessControl, Pausable {
+contract TripEscrow is ReentrancyGuard, AccessControlEnumerable, Pausable {
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant ORGANIZER_ROLE = keccak256("ORGANIZER_ROLE");
 
@@ -184,7 +185,6 @@ contract TripEscrow is ReentrancyGuard, AccessControl, Pausable {
 
         // Calculate confirmed vs slashed participants
         uint256 confirmedCount = 0;
-        uint256 slashedAmount = 0;
 
         address[] memory participantList = tripParticipants[_tripId];
         for (uint256 i = 0; i < participantList.length; i++) {
@@ -194,18 +194,18 @@ contract TripEscrow is ReentrancyGuard, AccessControl, Pausable {
             if (participant.hasConfirmed) {
                 confirmedCount++;
             } else if (!participant.isSlashed) {
-                // Slash no-show participants
+                // Slash no-show participants - they forfeit their entire stake
                 participant.isSlashed = true;
                 uint256 slashAmount = (participant.stakedAmount * SLASH_PERCENTAGE) / 100;
-                slashedAmount += slashAmount;
                 emit ParticipantSlashed(_tripId, participantAddr, slashAmount);
             }
         }
 
         require(confirmedCount > 0, "No confirmed participants");
 
-        // Distribute funds + slashed amounts to confirmed participants
-        uint256 rewardPerParticipant = (remainingAmount + slashedAmount) / confirmedCount;
+        // All remaining funds (after platform fee) are distributed equally to confirmed participants
+        // This includes the stakes from no-show participants who were slashed
+        uint256 rewardPerParticipant = remainingAmount / confirmedCount;
 
         for (uint256 i = 0; i < participantList.length; i++) {
             address participantAddr = participantList[i];
@@ -214,14 +214,9 @@ contract TripEscrow is ReentrancyGuard, AccessControl, Pausable {
             if (participant.hasConfirmed) {
                 (bool success, ) = participantAddr.call{value: rewardPerParticipant}("");
                 require(success, "Transfer failed");
-            } else if (participant.isSlashed) {
-                // Return remaining stake after slashing
-                uint256 returnAmount = participant.stakedAmount - ((participant.stakedAmount * SLASH_PERCENTAGE) / 100);
-                if (returnAmount > 0) {
-                    (bool success, ) = participantAddr.call{value: returnAmount}("");
-                    require(success, "Slash refund failed");
-                }
             }
+            // Note: Slashed participants forfeit their entire stake as penalty
+            // The slashed amount is redistributed to confirmed participants
         }
 
         // Send platform fee to admin
