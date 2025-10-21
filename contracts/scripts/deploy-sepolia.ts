@@ -1,16 +1,18 @@
 import { ethers } from "hardhat";
 import * as dotenv from "dotenv";
-import * as fs from "node:fs";
-import * as path from "node:path";
 
 dotenv.config({ path: "../.env.local" });
 
 async function main() {
-  console.log("🚀 Deploying WanderLink contracts to Hedera Testnet...\n");
+  console.log("🚀 Deploying WanderLink contracts to Ethereum Sepolia...\n");
 
   const [deployer] = await ethers.getSigners();
   console.log("Deploying with account:", deployer.address);
-  console.log("Account balance:", ethers.formatEther(await ethers.provider.getBalance(deployer.address)), "HBAR\n");
+  console.log(
+    "Account balance:",
+    ethers.formatEther(await ethers.provider.getBalance(deployer.address)),
+    "ETH\n"
+  );
 
   // Deploy TripEscrow
   console.log("📝 Deploying TripEscrow...");
@@ -39,7 +41,7 @@ async function main() {
 
   // Summary
   console.log("\n" + "=".repeat(60));
-  console.log("📋 DEPLOYMENT SUMMARY (Hedera Testnet)");
+  console.log("📋 DEPLOYMENT SUMMARY (Ethereum Sepolia)");
   console.log("=".repeat(60));
   console.log("TripEscrow:     ", tripEscrowAddress);
   console.log("ReputationSBT:  ", reputationSBTAddress);
@@ -47,11 +49,14 @@ async function main() {
   console.log("=".repeat(60));
 
   // Save addresses to file
+  const fs = require("node:fs");
+  const path = require("node:path");
   const dir = path.join(__dirname, "..", "deployments");
   fs.mkdirSync(dir, { recursive: true });
+
   const addresses = {
-    network: "hedera-testnet",
-    chainId: 296,
+    network: "sepolia",
+    chainId: 11155111,
     contracts: {
       TripEscrow: tripEscrowAddress,
       ReputationSBT: reputationSBTAddress,
@@ -61,18 +66,15 @@ async function main() {
     deployedAt: new Date().toISOString(),
   };
 
-  fs.writeFileSync(path.join(dir, "hedera-testnet.json"), JSON.stringify(addresses, null, 2));
-  console.log("\n✅ Deployment addresses saved to ./deployments/hedera-testnet.json");
+  fs.writeFileSync(path.join(dir, "sepolia.json"), JSON.stringify(addresses, null, 2));
+  console.log("\n✅ Deployment addresses saved to ./deployments/sepolia.json");
 
   console.log("\n🎉 Deployment complete!\n");
 }
 
-(async () => {
-  try {
-    await main();
-    process.exit(0);
-  } catch (error) {
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
     console.error(error);
     process.exit(1);
-  }
-})();
+  });

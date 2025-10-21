@@ -3,7 +3,7 @@ import "@nomicfoundation/hardhat-toolbox";
 import "hardhat-deploy";
 import * as dotenv from "dotenv";
 
-dotenv.config({ path: "../../.env.local" });
+dotenv.config({ path: "../.env.local" });
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -24,15 +24,10 @@ const config: HardhatUserConfig = {
       accounts: process.env.HEDERA_PRIVATE_KEY ? [process.env.HEDERA_PRIVATE_KEY] : [],
       chainId: 296,
     },
-    mumbai: {
-      url: process.env.POLYGON_RPC_URL || "https://rpc-mumbai.maticvigil.com",
-      accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
-      chainId: 80001,
-    },
-    polygon: {
-      url: "https://polygon-rpc.com",
-      accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
-      chainId: 137,
+    sepolia: {
+      url: process.env.SEPOLIA_RPC_URL || "https://sepolia.infura.io/v3/${process.env.INFURA_PROJECT_ID}",
+      accounts: process.env.ETH_PRIVATE_KEY ? [process.env.ETH_PRIVATE_KEY] : (process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : []),
+      chainId: 11155111,
     },
   },
   paths: {
@@ -40,10 +35,6 @@ const config: HardhatUserConfig = {
     tests: "./test",
     cache: "./cache",
     artifacts: "./artifacts",
-  },
-  typechain: {
-    outDir: "typechain-types",
-    target: "ethers-v6",
   },
 };
 
