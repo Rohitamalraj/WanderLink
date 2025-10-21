@@ -1,14 +1,14 @@
 import { getDefaultConfig } from '@rainbow-me/rainbowkit'
 import { http } from 'wagmi'
-import { hederaTestnet, polygonMumbai, hardhat } from 'wagmi/chains'
+import { hederaTestnet, sepolia, hardhat } from 'wagmi/chains'
 
 export const config = getDefaultConfig({
   appName: 'WanderLink',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'YOUR_PROJECT_ID',
-  chains: [hederaTestnet, polygonMumbai, hardhat],
+  chains: [hederaTestnet, sepolia, hardhat],
   transports: {
-    [hederaTestnet.id]: http(),
-    [polygonMumbai.id]: http(),
+    [hederaTestnet.id]: http('https://testnet.hashio.io/api'),
+    [sepolia.id]: http(process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL),
     [hardhat.id]: http(),
   },
   ssr: true,

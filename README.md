@@ -35,16 +35,16 @@ Solo travelers want authentic small-group experiences with strangers, but meetin
 ### Tech Stack
 
 **Blockchain & Web3:**
-- 🔷 **Hedera Hashgraph** - TripEscrow contracts, fast consensus
-- 🟣 **Polygon** - Scalable L2 for high-frequency interactions
-- 🔐 **Lit Protocol** - Encrypted KYC & access control
+- 🔷 **Hedera Hashgraph** - TripEscrow contracts, fast consensus (✅ DEPLOYED)
+- 🌐 **Ethereum Sepolia** - Testnet deployment for compatibility (✅ DEPLOYED)
+- 🔐 **Lit Protocol** - Encrypted KYC & access control (✅ INTEGRATED)
 - 📦 **Lighthouse** - Decentralized encrypted storage
 - 🪪 **Worldcoin WorldID** - Proof of personhood
 
 **AI & Agents:**
-- 🤖 **Fetch.ai ASI** - Autonomous agent negotiation
-- 🧠 **LangChain** - Agent orchestration
-- 🎯 **OpenAI GPT-4** - Preference matching & itinerary generation
+- 🤖 **Fetch.ai ASI** - Autonomous agent negotiation (✅ IMPLEMENTED)
+- 🧠 **Multi-Agent Negotiation** - Intelligent group matchmaking
+- 🎯 **Synergy Scoring** - ML-based compatibility calculation
 
 **Frontend:**
 - ⚛️ **Next.js 14** - App router, Server Components
