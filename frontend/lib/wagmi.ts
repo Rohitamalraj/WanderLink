@@ -1,24 +1,11 @@
-import { getDefaultConfig } from '@rainbow-me/rainbowkit'
-import { http } from 'wagmi'
-import { hederaTestnet, sepolia, hardhat } from 'wagmi/chains'
+import { createConfig } from 'wagmi'
+import type { Chain } from 'wagmi/chains'
+import { injected } from '@wagmi/connectors'
 
-export const config = getDefaultConfig({
-  appName: 'WanderLink',
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'YOUR_PROJECT_ID',
-  chains: [hederaTestnet, sepolia, hardhat],
-  transports: {
-    [hederaTestnet.id]: http('https://testnet.hashio.io/api'),
-    [sepolia.id]: http(process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL),
-    [hardhat.id]: http(),
-  },
-  ssr: true,
-})
 
-// Custom chain definition for Hedera if needed
-export const hedera = {
+export const hedera: Chain = {
   id: 296,
   name: 'Hedera Testnet',
-  network: 'hedera-testnet',
   nativeCurrency: {
     decimals: 18,
     name: 'HBAR',
@@ -33,3 +20,16 @@ export const hedera = {
   },
   testnet: true,
 }
+
+export const chains = [hedera]
+
+export const config = createConfig({
+  chains,
+  connectors: [
+    injected({
+      target: 'metaMask',
+      shimDisconnect: true,
+    }),
+  ],
+  ssr: false,
+})
