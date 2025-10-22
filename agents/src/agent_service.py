@@ -6,7 +6,7 @@ FastAPI service to connect frontend with Fetch.ai agents
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 import httpx
 import os
 from dotenv import load_dotenv
@@ -44,8 +44,8 @@ class MatchRequestAPI(BaseModel):
     end_date: str
     budget_min: float
     budget_max: float
-    activities: Dict[str, float]
-    travel_style: Dict[str, float]
+    activities: Dict[str, Any]
+    travel_style: Dict[str, Any]
 
 class ItineraryRequestAPI(BaseModel):
     destination: str
@@ -206,18 +206,32 @@ def generate_mock_matches(request: MatchRequestAPI):
     return {
         "matches": [
             {
+                "trip_id": "trip_001",
                 "user_id": "user-mock-1",
-                "compatibility": 85,
+                "compatibility_score": 85,
                 "destination": request.destination,
                 "estimated_cost": (request.budget_min + request.budget_max) / 2,
-                "confidence": "High"
+                "confidence": "High",
+                "compatibility": {
+                    "interests": 0.85,
+                    "budget": 0.90,
+                    "pace": 0.80,
+                    "overall": 0.85
+                }
             },
             {
+                "trip_id": "trip_002",
                 "user_id": "user-mock-2",
-                "compatibility": 72,
+                "compatibility_score": 72,
                 "destination": request.destination,
                 "estimated_cost": (request.budget_min + request.budget_max) / 2 + 300,
-                "confidence": "Medium"
+                "confidence": "Medium",
+                "compatibility": {
+                    "interests": 0.70,
+                    "budget": 0.75,
+                    "pace": 0.70,
+                    "overall": 0.72
+                }
             }
         ],
         "confidence": "Medium",

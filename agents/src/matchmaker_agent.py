@@ -32,10 +32,13 @@ class MatchResponse(Model):
     message: str
 
 # Create agent with unique seed
-# For Agentverse deployment: remove port and endpoint
+# For local testing: use port and endpoint
+# For Agentverse: remove port and endpoint
 matchmaker = Agent(
     name="wanderlink_matchmaker",
-    seed="wanderlink_matchmaker_secret_2025"
+    seed="wanderlink_matchmaker_secret_2025",
+    port=8001,
+    endpoint=["http://localhost:8001/submit"]
 )
 
 # Chat protocol for conversational interface

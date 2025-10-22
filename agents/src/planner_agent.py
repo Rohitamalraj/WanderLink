@@ -25,10 +25,13 @@ class ItineraryResponse(Model):
     message: str
 
 # Create planner agent
-# For Agentverse deployment: remove port and endpoint
+# For local testing: use port and endpoint
+# For Agentverse: remove port and endpoint
 planner = Agent(
     name="wanderlink_planner",
-    seed="wanderlink_planner_secret_2025"
+    seed="wanderlink_planner_secret_2025",
+    port=8002,
+    endpoint=["http://localhost:8002/submit"]
 )
 
 # Chat protocol for conversational interface

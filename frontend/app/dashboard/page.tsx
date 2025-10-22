@@ -88,7 +88,7 @@ export default function DashboardPage() {
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           <Link
-            href="/trips/create"
+            href="/trips"
             className="group bg-gradient-to-r from-orange-500 via-pink-500 to-purple-500 rounded-2xl p-8 border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 transition-all text-center"
           >
             <div className="bg-white rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center border-4 border-black">
@@ -167,7 +167,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-3xl font-black">HOSTING</h2>
               <Link
-                href="/trips/create"
+                href="/trips"
                 className="flex items-center gap-2 text-lg font-bold hover:underline"
               >
                 Create Trip
@@ -186,7 +186,7 @@ export default function DashboardPage() {
                 <MapPin className="w-16 h-16 mx-auto mb-4 text-gray-300" />
                 <p className="text-lg font-black text-gray-400 mb-2">NOT HOSTING YET</p>
                 <Link
-                  href="/trips/create"
+                  href="/trips"
                   className="inline-block text-orange-600 font-bold hover:underline"
                 >
                   Create your first trip →

@@ -41,7 +41,7 @@ export default function HomePage() {
                     EXPLORE TRIPS
                   </Link>
                   <Link
-                    href="/trips/create"
+                    href="/trips"
                     className="bg-white text-black px-8 py-4 rounded-2xl font-black text-lg border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 transition-all"
                   >
                     CREATE TRIP

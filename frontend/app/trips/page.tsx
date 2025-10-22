@@ -169,26 +169,15 @@ export default function TripsPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Page Title */}
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-5xl sm:text-6xl font-black mb-4">EXPLORE TRIPS</h1>
-            <p className="text-xl text-gray-700 font-bold">
-              Find your next adventure with {filteredTrips.length} trips available
-            </p>
-          </div>
-          
-          {/* JOIN A TRIP Button */}
-          <button
-            onClick={handleJoinTrip}
-            className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-8 py-4 rounded-xl font-black border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 transition-all flex items-center gap-2 text-lg"
-          >
-            <Sparkles className="w-6 h-6" />
-            JOIN A TRIP
-          </button>
+        <div className="mb-8">
+          <h1 className="text-5xl sm:text-6xl font-black mb-4">COMPLETED TRIPS</h1>
+          <p className="text-xl text-gray-700 font-bold">
+            Explore {filteredTrips.length} successful adventures
+          </p>
         </div>
 
         {/* Search Bar */}
-        <div className="mb-8">
+        <div className="mb-6">
           <div className="relative">
             <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-400" />
             <input
@@ -199,6 +188,17 @@ export default function TripsPage() {
               className="w-full pl-16 pr-6 py-5 rounded-2xl border-4 border-black font-bold text-lg shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] focus:outline-none focus:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] focus:translate-x-1 focus:translate-y-1 transition-all"
             />
           </div>
+        </div>
+
+        {/* JOIN A TRIP Button */}
+        <div className="mb-8">
+          <button
+            onClick={handleJoinTrip}
+            className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-8 py-4 rounded-xl font-black border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 transition-all flex items-center gap-2 text-lg"
+          >
+            <Sparkles className="w-6 h-6" />
+            JOIN A TRIP
+          </button>
         </div>
 
         {/* Filters Button & Tags */}
@@ -338,15 +338,9 @@ function TripCard({ trip }: { trip: any }) {
         />
         {/* Status Badge */}
         <div className="absolute top-4 left-4">
-          {trip.status === 'full' ? (
-            <span className="bg-yellow-400 px-3 py-1 rounded-full border-2 border-black font-black text-sm">
-              FULL
-            </span>
-          ) : (
-            <span className="bg-green-400 px-3 py-1 rounded-full border-2 border-black font-black text-sm">
-              {spotsLeft} SPOTS LEFT
-            </span>
-          )}
+          <span className="bg-green-400 px-3 py-1 rounded-full border-2 border-black font-black text-sm">
+            COMPLETED
+          </span>
         </div>
         {/* Duration Badge */}
         <div className="absolute top-4 right-4 bg-white px-3 py-1 rounded-full border-2 border-black font-black text-sm">

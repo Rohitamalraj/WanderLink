@@ -33,10 +33,13 @@ class UpdateProfileRequest(Model):
     updates: Dict
 
 # Create user agent
-# For Agentverse deployment: remove port and endpoint
+# For local testing: use port and endpoint
+# For Agentverse: remove port and endpoint
 user_agent = Agent(
     name="wanderlink_user",
-    seed="wanderlink_user_secret_2025"
+    seed="wanderlink_user_secret_2025",
+    port=8003,
+    endpoint=["http://localhost:8003/submit"]
 )
 
 # Chat protocol for conversational interface

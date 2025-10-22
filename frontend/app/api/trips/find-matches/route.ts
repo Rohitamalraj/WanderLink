@@ -32,15 +32,20 @@ export async function POST(req: NextRequest) {
     const agentServiceUrl = process.env.AGENT_SERVICE_URL || 'http://localhost:8000'
     
     try {
-      const response = await fetch(`${agentServiceUrl}/find-matches`, {
+      const response = await fetch(`${agentServiceUrl}/api/find-matches`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           user_id: userId,
-          preferences,
-          search_criteria: searchCriteria || {},
+          destination: preferences.preferred_destinations?.[0] || 'any',
+          start_date: searchCriteria?.start_date || '2025-11-15',
+          end_date: searchCriteria?.end_date || '2025-11-22',
+          budget_min: preferences.budget_min || 0,
+          budget_max: preferences.budget_max || 10000,
+          activities: preferences.activities || {},
+          travel_style: preferences.travel_style || {},
         }),
       })
 
