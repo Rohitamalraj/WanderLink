@@ -160,7 +160,7 @@ export default function MatchResultsModal({
                           className="px-6 py-3 bg-green-400 border-2 border-black font-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all flex items-center gap-2"
                         >
                           <Send size={18} />
-                          JOIN TRIP
+                          JOIN GROUP
                         </button>
                       </div>
                     </div>

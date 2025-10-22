@@ -2,11 +2,12 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Search, MapPin, Users, Calendar, DollarSign, Filter, X, Sparkles } from 'lucide-react'
+import { Search, MapPin, Users, Calendar, DollarSign, Filter, X, Sparkles, Plus } from 'lucide-react'
 import { mockTrips } from '@/lib/mock-data'
 import { formatDate, calculateDays } from '@/lib/utils'
 import JoinTripModal, { type UserPreferences } from '@/components/JoinTripModal'
 import MatchResultsModal from '@/components/MatchResultsModal'
+import CreateGroupModal from '@/components/CreateGroupModal'
 
 export default function TripsPage() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -21,6 +22,9 @@ export default function TripsPage() {
   const [matches, setMatches] = useState<any[]>([])
   const [loadingMatches, setLoadingMatches] = useState(false)
   const [userId, setUserId] = useState<string>('')
+  
+  // Create Group Modal State
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false)
 
   // Initialize user (mock - in production would come from auth)
   useState(() => {
@@ -38,90 +42,104 @@ export default function TripsPage() {
     setShowJoinModal(true)
   }
 
+  // Helper function to find matches directly
+  const findMatchesDirectly = async (currentUserId: string, preferences: UserPreferences) => {
+    console.log('🔎 Finding matches directly...')
+    const matchResponse = await fetch('/api/trips/find-matches', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: currentUserId,
+        preferences: {
+          preferred_destinations: preferences.preferred_destinations || [],
+          budget_min: preferences.budget_min || 500,
+          budget_max: preferences.budget_max || 5000,
+          interests: preferences.interests || [],
+          travel_pace: preferences.travel_pace || 'moderate',
+          activities: preferences.interests?.reduce((acc: any, interest: string) => {
+            acc[interest.toLowerCase()] = 0.8
+            return acc
+          }, {}) || {},
+          travel_style: {
+            luxury: preferences.accommodation_types?.includes('Resort') ? 0.8 : 0.4,
+            social: 0.7,
+            cultural: preferences.interests?.includes('Culture') ? 0.9 : 0.5
+          }
+        },
+        searchCriteria: {},
+      }),
+    })
+    
+    if (!matchResponse.ok) {
+      const errorData = await matchResponse.json()
+      throw new Error(errorData.error || 'Failed to find matches')
+    }
+    
+    const matchData = await matchResponse.json()
+    console.log('📊 Match results:', matchData)
+
+    if (matchData.matches && matchData.matches.length > 0) {
+      console.log(`✅ Found ${matchData.matches.length} matches!`)
+      setMatches(matchData.matches)
+    } else {
+      console.log('⚠️ No matches found')
+      setMatches([])
+    }
+  }
+
   const handleSubmitPreferences = async (preferences: UserPreferences) => {
+    console.log('🔍 Starting match finding process...')
+    console.log('📋 User preferences:', preferences)
+    
     setLoadingMatches(true)
     setShowMatchResults(true)
 
     try {
-      // Step 1: Create/Get User
-      const userResponse = await fetch('/api/user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: preferences.email,
-          name: preferences.name,
-        }),
-      })
-      const userData = await userResponse.json()
-      const currentUserId = userData.user.id
-
-      // Save user ID
+      // Generate a user ID directly (bypass Supabase RLS issues)
+      const currentUserId = localStorage.getItem('wanderlink_user_id') || 
+        `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      
+      console.log('✅ Using user ID:', currentUserId)
       localStorage.setItem('wanderlink_user_id', currentUserId)
       setUserId(currentUserId)
 
-      // Step 2: Save Preferences
-      await fetch('/api/user/preferences', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: currentUserId,
-          preferences,
-        }),
-      })
-
-      // Step 3: Create User Agent
-      await fetch('/api/user/agent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: currentUserId,
-        }),
-      })
-
-      // Step 4: Find Matches
-      const matchResponse = await fetch('/api/trips/find-matches', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: currentUserId,
-          searchCriteria: {},
-        }),
-      })
-      const matchData = await matchResponse.json()
-
-      setMatches(matchData.matches || [])
-    } catch (error) {
+      // Skip user creation, preferences saving, and agent creation
+      // Go directly to match finding (the only critical step)
+      console.log('🔎 Finding matches...')
+      await findMatchesDirectly(currentUserId, preferences)
+      
+    } catch (error: any) {
       console.error('Error finding matches:', error)
-      alert('Failed to find matches. Please try again.')
+      alert(`Failed to find matches: ${error.message || 'Please try again.'}`)
+      setMatches([])
     } finally {
       setLoadingMatches(false)
     }
   }
 
-  const handleJoinSpecificTrip = async (tripId: string) => {
+  const handleJoinSpecificTrip = async (groupId: string) => {
     try {
-      const response = await fetch('/api/trips/join-request', {
+      console.log('🚀 Joining group:', groupId)
+      
+      const response = await fetch(`/api/groups/${groupId}/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId,
-          tripId,
-          message: 'I would love to join this trip!',
-          compatibilityScore: 85,
-          matchFactors: {},
-        }),
       })
 
       const data = await response.json()
-      
-      if (response.ok) {
-        alert('Join request sent! The host will review your profile.')
-      } else {
-        alert(data.error || 'Failed to send join request')
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to join group')
       }
-    } catch (error) {
-      console.error('Error sending join request:', error)
-      alert('Failed to send join request. Please try again.')
+
+      console.log('✅ Successfully joined group:', data)
+      alert('🎉 Successfully joined the group! Check your dashboard to see your new travel buddies.')
+      
+      // Close modal and refresh
+      setShowMatchResults(false)
+    } catch (error: any) {
+      console.error('Error joining group:', error)
+      alert(`Failed to join group: ${error.message}`)
     }
   }
 
@@ -190,14 +208,22 @@ export default function TripsPage() {
           </div>
         </div>
 
-        {/* JOIN A TRIP Button */}
-        <div className="mb-8">
+        {/* Action Buttons */}
+        <div className="mb-8 flex flex-wrap gap-4">
+          <button
+            onClick={() => setShowCreateGroupModal(true)}
+            className="bg-gradient-to-r from-green-400 to-blue-400 text-white px-8 py-4 rounded-xl font-black border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 transition-all flex items-center gap-2 text-lg"
+          >
+            <Plus className="w-6 h-6" />
+            CREATE GROUP
+          </button>
+          
           <button
             onClick={handleJoinTrip}
             className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-8 py-4 rounded-xl font-black border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 transition-all flex items-center gap-2 text-lg"
           >
             <Sparkles className="w-6 h-6" />
-            JOIN A TRIP
+            FIND MY MATCHES
           </button>
         </div>
 
@@ -302,6 +328,15 @@ export default function TripsPage() {
       </div>
 
       {/* Modals */}
+      <CreateGroupModal
+        isOpen={showCreateGroupModal}
+        onClose={() => setShowCreateGroupModal(false)}
+        onSuccess={() => {
+          // Refresh page or update UI
+          alert('Group created! Now visible in Find My Matches.')
+        }}
+      />
+      
       <JoinTripModal
         isOpen={showJoinModal}
         onClose={() => setShowJoinModal(false)}

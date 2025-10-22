@@ -7,19 +7,22 @@ import { config } from '@/lib/wagmi'
 import '@rainbow-me/rainbowkit/styles.css'
 import { useState } from 'react'
 import { AuthProvider } from '@/contexts/AuthContext'
+import { SessionProvider } from 'next-auth/react'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient())
 
   return (
-    <AuthProvider>
-      <WagmiProvider config={config}>
-        <QueryClientProvider client={queryClient}>
-          <RainbowKitProvider theme={darkTheme()}>
-            {children}
-          </RainbowKitProvider>
-        </QueryClientProvider>
-      </WagmiProvider>
-    </AuthProvider>
+    <SessionProvider>
+      <AuthProvider>
+        <WagmiProvider config={config}>
+          <QueryClientProvider client={queryClient}>
+            <RainbowKitProvider theme={darkTheme()}>
+              {children}
+            </RainbowKitProvider>
+          </QueryClientProvider>
+        </WagmiProvider>
+      </AuthProvider>
+    </SessionProvider>
   )
 }

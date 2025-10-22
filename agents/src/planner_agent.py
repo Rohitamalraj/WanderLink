@@ -1,28 +1,71 @@
 """
 WanderLink Planner Agent
 Autonomous agent for generating AI-powered travel itineraries
-Supports both direct messaging and chat protocol
+Supports both direct messaging, chat protocol, and A2A communication
+Enhanced with ASI:One AI and Knowledge Graph
 """
 
 from uagents import Agent, Context, Model, Protocol
+from uagents_core.contrib.protocols.chat import (
+    ChatAcknowledgement,
+    ChatMessage,
+    EndSessionContent,
+    TextContent,
+    chat_protocol_spec,
+)
 from typing import List, Dict, Optional
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import uuid4
+import os
+import sys
 
-# Message models
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
+
+# Try to import ASI and Knowledge Graph utilities
+try:
+    from utils.asi_llm import get_asi_llm
+    ASI_ENABLED = True
+    print("✅ ASI:One integration enabled")
+except ImportError as e:
+    ASI_ENABLED = False
+    print(f"⚠️  ASI:One not available: {e}")
+
+try:
+    from utils.knowledge_graph import get_knowledge_graph
+    KG_ENABLED = True
+    print("✅ Knowledge Graph enabled")
+except ImportError as e:
+    KG_ENABLED = False
+    print(f"⚠️  Knowledge Graph not available: {e}")
+
+# ============================================================================
+# MESSAGE MODELS
+# ============================================================================
+
+# Direct messaging models
 class ItineraryRequest(Model):
+    """Request for itinerary generation"""
     destination: str
     num_days: int
     interests: List[str]
     budget_per_day: float
     pace: str  # "relaxed", "moderate", "packed"
+    user_id: Optional[str] = None
+    matched_user_ids: Optional[List[str]] = None
+    timestamp: Optional[str] = None
+    source_agent: Optional[str] = None
 
 class ItineraryResponse(Model):
+    """Response with generated itinerary"""
     itinerary: List[Dict]
     recommendations: List[str]
     estimated_cost: str
     message: str
+    user_id: Optional[str] = None
+    timestamp: Optional[str] = None
+    asi_powered: bool = False
 
 # Create planner agent
 # For local testing: use port and endpoint
@@ -34,8 +77,9 @@ planner = Agent(
     endpoint=["http://localhost:8002/submit"]
 )
 
-# Chat protocol for conversational interface
-chat_protocol = Protocol(name="PlannerChat", version="1.0")
+# Chat protocol for ASI:One compatibility
+# IMPORTANT: Do NOT provide a name when using chat_protocol_spec
+chat_protocol = Protocol(spec=chat_protocol_spec)
 
 # Conversation state storage
 conversation_states: Dict[str, Dict] = {}
@@ -51,125 +95,115 @@ async def introduce(ctx: Context):
     ctx.logger.info("=" * 60)
 
 # ============================================================================
-# CHAT PROTOCOL HANDLERS
+# CHAT PROTOCOL HANDLERS (ASI:One Compatible)
 # ============================================================================
 
-class ChatMessage(Model):
-    """Chat message model"""
-    session_id: str
-    message: str
-    timestamp: str
-
-class ChatResponse(Model):
-    """Chat response model"""
-    session_id: str
-    message: str
-    timestamp: str
-    data: Optional[Dict] = None
-
-@chat_protocol.on_message(model=ChatMessage)
+@chat_protocol.on_message(ChatMessage)
 async def handle_chat(ctx: Context, sender: str, msg: ChatMessage):
-    """Handle conversational chat messages"""
-    ctx.logger.info(f"💬 Chat from {sender[:16]}...: {msg.message[:50]}...")
+    """Handle ASI:One compatible chat messages for itinerary planning"""
+    ctx.logger.info(f"💬 Chat from {sender[:16]}...")
     
-    # Get or create conversation state
-    if msg.session_id not in conversation_states:
-        conversation_states[msg.session_id] = {
-            "step": "welcome",
-            "data": {}
-        }
+    # Send acknowledgement
+    await ctx.send(
+        sender,
+        ChatAcknowledgement(timestamp=datetime.now(), acknowledged_msg_id=msg.msg_id),
+    )
     
-    state = conversation_states[msg.session_id]
-    message_lower = msg.message.lower()
+    # Collect text from message content
+    text = ''
+    for item in msg.content:
+        if isinstance(item, TextContent):
+            text += item.text
     
-    # Process based on current step
-    if state["step"] == "welcome":
-        response_text = """🗺️ **Welcome to WanderLink AI Planner!**
-
-I'll help you create the perfect travel itinerary.
-
-Please tell me:
-1. Your destination
-2. Number of days
-3. Your interests (culture, adventure, food, etc.)
-4. Daily budget
-5. Travel pace (relaxed/moderate/packed)
-
-Example: "Plan a 7-day Tokyo trip with $150/day, interested in culture and food, moderate pace"
-
-What would you like to plan?"""
-        state["step"] = "collecting"
+    ctx.logger.info(f"📝 Message: {text[:50]}...")
     
-    elif state["step"] == "collecting":
-        # Try to extract information
-        extracted = extract_trip_info(msg.message)
+    # Extract trip information from natural language
+    extracted = extract_trip_info(text)
+    
+    response_text = ""
+    
+    if extracted.get("destination") and extracted.get("num_days"):
+        # Generate itinerary
+        request = ItineraryRequest(
+            destination=extracted["destination"],
+            num_days=extracted["num_days"],
+            interests=extracted.get("interests", ["sightseeing"]),
+            budget_per_day=extracted.get("budget_per_day", 100),
+            pace=extracted.get("pace", "moderate")
+        )
         
-        if extracted.get("destination") and extracted.get("num_days"):
-            # Generate itinerary
-            request = ItineraryRequest(
-                destination=extracted["destination"],
-                num_days=extracted["num_days"],
-                interests=extracted.get("interests", ["sightseeing"]),
-                budget_per_day=extracted.get("budget_per_day", 100),
-                pace=extracted.get("pace", "moderate")
-            )
-            
-            itinerary = generate_itinerary(request)
-            recommendations = generate_recommendations(request)
-            total_cost = request.budget_per_day * request.num_days
-            
-            # Format response
-            response_text = f"""✅ **Your {request.num_days}-Day {request.destination} Itinerary!**
+        ctx.logger.info(f"🗺️  Generating itinerary for {request.destination}...")
+        itinerary, asi_powered = generate_itinerary_asi(request, ctx)
+        recommendations = generate_recommendations(request)
+        total_cost = request.budget_per_day * request.num_days
+        
+        # Format response
+        response_text = f"""✅ **Your {request.num_days}-Day {request.destination} Itinerary!**
+{"✨ AI-Powered by ASI:One" if asi_powered else ""}
 
 📍 **Destination:** {request.destination}
 📅 **Duration:** {request.num_days} days
-💰 **Budget:** ${request.budget_per_day}/day
+💰 **Budget:** ${request.budget_per_day}/day (Total: ${total_cost})
 ⏰ **Pace:** {request.pace}
 
 ---
 
 """
-            for day in itinerary[:3]:  # Show first 3 days
-                response_text += f"**{day['title']}**\n"
-                for activity in day['activities'][:2]:
-                    response_text += f"• {activity}\n"
-                response_text += f"💵 {day['budget_range']}\n\n"
-            
-            if len(itinerary) > 3:
-                response_text += f"*...and {len(itinerary) - 3} more days*\n\n"
-            
-            response_text += "**🎯 Pro Tips:**\n"
-            for rec in recommendations[:3]:
-                response_text += f"✅ {rec}\n"
-            
-            response_text += f"\n**Total Estimated Cost:** ${int(total_cost - 200)}-${int(total_cost + 200)}\n\n"
-            response_text += "Would you like to plan another trip?"
-            
-            state["step"] = "welcome"
-            state["data"] = {"last_itinerary": itinerary}
-        else:
-            response_text = """I need a bit more information! Please include:
+        for i, day in enumerate(itinerary[:5], 1):  # Show first 5 days
+            response_text += f"**Day {i}: {day['title']}**\n"
+            for activity in day['activities'][:3]:
+                response_text += f"• {activity}\n"
+            response_text += f"💵 {day['budget_range']}\n\n"
+        
+        if len(itinerary) > 5:
+            response_text += f"\n... and {len(itinerary) - 5} more days!\n\n"
+        
+        response_text += """
 
-• **Destination**: Where do you want to go?
-• **Duration**: How many days?
-• **Budget**: How much per day?
-• **Interests**: What do you enjoy?
-• **Pace**: Relaxed, moderate, or packed?
+🎯 **Travel Tips:**
+"""
+        for rec in recommendations[:3]:
+            response_text += f"• {rec}\n"
+        
+        response_text += """
 
-Example: "Tokyo for 5 days, $120/day, love food and culture, moderate pace" """
-    
+I specialize in creating personalized travel itineraries! Ask me about:
+• Day-by-day activity planning
+• Budget optimization
+• Must-visit attractions
+• Local experiences"""
+        
     else:
-        response_text = "Let's start planning! What destination interests you?"
-        state["step"] = "collecting"
+        response_text = """👋 Hi! I'm the WanderLink Planner Agent - I specialize in creating personalized travel itineraries!
+
+Tell me about your trip and I'll plan the perfect itinerary:
+
+**Example:** "Plan a 7-day Tokyo trip with $150/day, interested in culture and food, moderate pace"
+
+Include:
+• 📍 **Destination**: Where are you going?
+• 📅 **Duration**: How many days?
+• 🎯 **Interests**: What do you enjoy? (culture, adventure, food, nature, etc.)
+• 💰 **Budget**: Daily budget?
+• ⏰ **Pace**: Relaxed, moderate, or packed schedule?
+
+What trip would you like me to plan?"""
     
-    # Send response
-    response = ChatResponse(
-        session_id=msg.session_id,
-        message=response_text,
-        timestamp=datetime.utcnow().isoformat()
-    )
-    
-    await ctx.send(sender, response)
+    # Send response back using chat protocol
+    await ctx.send(sender, ChatMessage(
+        timestamp=datetime.utcnow(),
+        msg_id=uuid4(),
+        content=[
+            TextContent(type="text", text=response_text),
+            EndSessionContent(type="end-session"),
+        ]
+    ))
+
+@chat_protocol.on_message(ChatAcknowledgement)
+async def handle_ack(ctx: Context, sender: str, msg: ChatAcknowledgement):
+    """Handle acknowledgements (read receipts)"""
+    # Not used in this example, but can be useful for tracking
+    pass
 
 def extract_trip_info(message: str) -> Dict:
     """Extract trip information from natural language"""
@@ -245,9 +279,9 @@ async def handle_itinerary_request(ctx: Context, sender: str, msg: ItineraryRequ
     ctx.logger.info(f"   Budget/day: ${msg.budget_per_day}")
     ctx.logger.info(f"   Pace: {msg.pace}")
     
-    # Generate itinerary
+    # Generate itinerary with ASI
     ctx.logger.info("📝 Generating itinerary...")
-    itinerary = generate_itinerary(msg)
+    itinerary, asi_powered = generate_itinerary_asi(msg, ctx)
     
     # Calculate costs
     total_cost = msg.budget_per_day * msg.num_days
@@ -259,14 +293,77 @@ async def handle_itinerary_request(ctx: Context, sender: str, msg: ItineraryRequ
         itinerary=itinerary,
         recommendations=recommendations,
         estimated_cost=f"${int(total_cost - 200)}-${int(total_cost + 200)}",
-        message=f"Generated {msg.num_days}-day itinerary for {msg.destination}"
+        message=f"Generated {msg.num_days}-day itinerary for {msg.destination}",
+        user_id=msg.user_id,
+        timestamp=datetime.now(timezone.utc).isoformat(),
+        asi_powered=asi_powered
     )
     
     ctx.logger.info(f"✅ Itinerary generated successfully!")
     await ctx.send(sender, response)
 
-def generate_itinerary(request: ItineraryRequest) -> List[Dict]:
-    """Generate itinerary based on preferences"""
+def generate_itinerary_asi(request: ItineraryRequest, ctx: Context = None) -> tuple[List[Dict], bool]:
+    """
+    Generate AI-powered itinerary using ASI:One
+    Returns: (itinerary, asi_powered)
+    """
+    if not ASI_ENABLED:
+        if ctx:
+            ctx.logger.warning("⚠️  ASI not available, using traditional method")
+        return generate_itinerary_traditional(request), False
+    
+    try:
+        if ctx:
+            ctx.logger.info("🤖 Using ASI:One for intelligent itinerary generation...")
+        
+        asi = get_asi_llm()
+        
+        # Generate AI-powered itinerary
+        result = asi.generate_itinerary(
+            destination=request.destination,
+            num_days=request.num_days,
+            interests=request.interests,
+            budget=request.budget_per_day,
+            pace=request.pace
+        )
+        
+        if result and 'itinerary' in result:
+            if ctx:
+                ctx.logger.info(f"✅ ASI generated {len(result['itinerary'])} days of activities")
+            
+            # Store in Knowledge Graph if available
+            if KG_ENABLED and request.user_id:
+                try:
+                    kg = get_knowledge_graph()
+                    # Store the trip plan
+                    kg.add_trip(
+                        user_id=request.user_id,
+                        trip_id=f"trip_{request.user_id}_{datetime.now(timezone.utc).timestamp()}",
+                        destination=request.destination,
+                        start_date=datetime.now(timezone.utc).isoformat(),
+                        end_date=datetime.now(timezone.utc).isoformat(),
+                        budget=request.budget_per_day * request.num_days,
+                        activities=request.interests
+                    )
+                    if ctx:
+                        ctx.logger.info("💾 Stored itinerary in Knowledge Graph")
+                except Exception as e:
+                    if ctx:
+                        ctx.logger.error(f"Failed to store in KG: {e}")
+            
+            return result['itinerary'], True
+        else:
+            if ctx:
+                ctx.logger.warning("ASI returned empty result, falling back")
+            return generate_itinerary_traditional(request), False
+            
+    except Exception as e:
+        if ctx:
+            ctx.logger.error(f"❌ ASI generation failed: {e}")
+        return generate_itinerary_traditional(request), False
+
+def generate_itinerary_traditional(request: ItineraryRequest) -> List[Dict]:
+    """Generate itinerary based on preferences (traditional method)"""
     activities_by_pace = {
         "relaxed": [
             "Morning: Leisurely breakfast at hotel",

@@ -1,4 +1,28 @@
-# WanderLink Agents - Agentverse Deployment Ready
+# 🚀 Deploying WanderLink Agents to Agentverse (ASI:One Compatible)
+
+## ✨ **NOW WITH ASI:ONE CHAT PROTOCOL!**
+
+WanderLink agents are now **ASI:One compatible** using the standardized chat protocol. This means they can be discovered and interacted with through ASI:One Chat!
+
+## What's Been Updated
+
+### ✅ MatchMaker Agent (`matchmaker_agent.py`)
+- **Specialization**: Finding compatible travel companions
+- **Chat Protocol**: ASI:One compatible ✨
+- **Capabilities**:
+  - Analyzes user travel preferences
+  - Finds matches with compatibility scores
+  - Uses ASI:One AI for intelligent matching
+  - Knowledge graph integration
+
+### ✅ Planner Agent (`planner_agent.py`)
+- **Specialization**: Creating personalized travel itineraries
+- **Chat Protocol**: ASI:One compatible ✨
+- **Capabilities**:
+  - Generates day-by-day itineraries
+  - Budget-optimized planning
+  - ASI:One AI-powered recommendations
+  - Multiple travel styles support
 
 ## Summary of Changes
 
