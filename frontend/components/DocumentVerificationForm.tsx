@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAccount, useWalletClient } from 'wagmi'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,6 +13,10 @@ import { lighthouseService } from '@/lib/lighthouse-storage'
 import { Loader2, CheckCircle, Shield } from 'lucide-react'
 import { toast } from 'sonner'
 import Image from 'next/image'
+import { submitProofOnChain } from '@/lib/zkproof-onchain'
+import { mintDataCoin } from '@/lib/datacoin'
+import { BrowserProvider } from 'ethers'
+import { setJSON, safeLocalStorage } from '@/lib/localStorage'
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 const LIGHTHOUSE_API_KEY = process.env.NEXT_PUBLIC_LIGHTHOUSE_API_KEY || ''
@@ -19,6 +24,7 @@ const LIGHTHOUSE_API_KEY = process.env.NEXT_PUBLIC_LIGHTHOUSE_API_KEY || ''
 export function DocumentVerificationForm({ onVerified }: { onVerified?: () => void }) {
   const { address, isConnected } = useAccount()
   const { data: walletClient } = useWalletClient()
+  const router = useRouter()
   
   // Form state
   const [fullName, setFullName] = useState('')
@@ -39,6 +45,10 @@ export function DocumentVerificationForm({ onVerified }: { onVerified?: () => vo
   const [encryptedCID, setEncryptedCID] = useState<string>('')
   const [lighthouseInitialized, setLighthouseInitialized] = useState(false)
   const [verificationComplete, setVerificationComplete] = useState(false)
+  const [retrievedData, setRetrievedData] = useState<string>('')
+  const [isRetrieving, setIsRetrieving] = useState(false)
+  const [zkProofCID, setZkProofCID] = useState<string>('')
+  const [isGeneratingProof, setIsGeneratingProof] = useState(false)
 
   // Initialize Lighthouse on mount
   useEffect(() => {
@@ -149,23 +159,36 @@ export function DocumentVerificationForm({ onVerified }: { onVerified?: () => vo
   }
 
   const handleVerifyAndEncrypt = async () => {
-    if (!validateForm()) return
+    console.log('🚀 handleVerifyAndEncrypt called')
+    console.log('Backend URL:', BACKEND_URL)
+    
+    if (!validateForm()) {
+      console.log('❌ Form validation failed')
+      return
+    }
+    
     if (!isConnected || !address) {
+      console.log('❌ Wallet not connected')
       toast.error('Please connect your wallet first')
       return
     }
     if (!walletClient) {
+      console.log('❌ Wallet client not available')
       toast.error('Wallet client not available')
       return
     }
     if (!lighthouseInitialized) {
+      console.log('❌ Lighthouse not initialized')
       toast.error('Lighthouse storage not initialized')
       return
     }
 
+    console.log('✅ All pre-checks passed, starting verification...')
+    
     try {
       setIsVerifying(true)
       toast.loading('Step 1: Verifying document with OCR...', { id: 'verify' })
+      console.log('📤 Sending verification request to:', `${BACKEND_URL}/api/identity/verify-document`)
 
       // Step 1: Verify document with OCR validation
       const formData = new FormData()
@@ -180,34 +203,45 @@ export function DocumentVerificationForm({ onVerified }: { onVerified?: () => vo
         formData.append('profilePhoto', profilePhoto)
       }
 
-      const verifyResponse = await fetch(`${BACKEND_URL}/api/identity/verify-document`, {
-        method: 'POST',
-        body: formData,
-      })
-
-      const verifyData = await verifyResponse.json()
+      let verifyResponse: Response
+      let verifyData: any
+      try {
+        console.log('📤 Fetching from:', `${BACKEND_URL}/api/identity/verify-document`)
+        verifyResponse = await fetch(`${BACKEND_URL}/api/identity/verify-document`, {
+          method: 'POST',
+          body: formData,
+        })
+        console.log('📥 Response status:', verifyResponse.status, verifyResponse.statusText)
+        verifyData = await verifyResponse.json()
+        console.log('📥 Response data:', verifyData)
+      } catch (networkErr) {
+        console.error('❌ Network error during document verification:', networkErr)
+        toast.error('Could not reach backend for document verification. Is the server running?', { id: 'verify', duration: 10000 })
+        setIsVerifying(false)
+        return
+      }
 
       if (!verifyResponse.ok || !verifyData.success) {
         // Handle validation errors
         if (verifyData.validation) {
           const errors = verifyData.validation.errors || []
           const warnings = verifyData.validation.warnings || []
-          
-          let errorMessage = verifyData.error || 'Document validation failed'
-          
-          if (errors.length > 0) {
-            errorMessage += '\n\n❌ Validation Errors:\n' + 
-              errors.map((e: string) => `• ${e}`).join('\n')
+          try {
+            const mintRes = await fetch(`${BACKEND_URL}/api/identity/mint-datacoin`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ address, cid }),
+            })
+            const mintData = await mintRes.json()
+            if (mintRes.ok && mintData.success) {
+              toast.success('DataCoin minted and sent to your wallet!', { id: 'mint' })
+            } else {
+              toast.error(mintData.error || 'Minting failed', { id: 'mint' })
+            }
+          } catch (mintErr) {
+            console.error('Network error during minting:', mintErr)
+            toast.error('Could not reach backend for minting. Is the server running?', { id: 'mint', duration: 10000 })
           }
-          
-          if (warnings.length > 0) {
-            errorMessage += '\n\n⚠️ Warnings:\n' + 
-              warnings.map((w: string) => `• ${w}`).join('\n')
-          }
-          
-          errorMessage += '\n\n💡 Tips:\n' +
-            '• Ensure document is clear and well-lit\n' +
-            '• Check that entered data matches document exactly\n' +
             '• Use original document (not photocopy)'
           
           toast.error(errorMessage, { id: 'verify', duration: 10000 })
@@ -277,8 +311,134 @@ export function DocumentVerificationForm({ onVerified }: { onVerified?: () => vo
       console.log('✅ Data encrypted and stored in Lighthouse')
       console.log('📦 Lighthouse CID:', cid)
 
+
       setEncryptedCID(cid)
       setIsEncrypting(false)
+      setRetrievedData('') // Clear previous retrieval
+
+      // Step 3: Generate ZK proof, store in Lighthouse, and submit on-chain
+      setIsGeneratingProof(true)
+      toast.loading('Step 3: Generating ZK proof...', { id: 'zkproof' })
+      try {
+        // Calculate age from date of birth
+        const birthDate = new Date(dateOfBirth)
+        const today = new Date()
+        let age = today.getFullYear() - birthDate.getFullYear()
+        const monthDiff = today.getMonth() - birthDate.getMonth()
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+          age--
+        }
+        const ageVerified = age >= 18
+
+        console.log('🔐 Generating ZK proof with:', { address, dateOfBirth, ageVerified, age })
+
+        // Step 3a: Generate proof and upload to Lighthouse
+        const proofRes = await fetch(`${BACKEND_URL}/api/identity/generate-zk-proof`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            address, 
+            ageVerified, 
+            dateOfBirth 
+          })
+        })
+        const proofData = await proofRes.json()
+        if (!proofRes.ok || !proofData.success) {
+          console.error('❌ ZK proof generation failed:', proofData.error)
+          toast.error(proofData.error || 'ZK proof generation failed', { id: 'zkproof' })
+          setIsGeneratingProof(false)
+          return
+        }
+
+        setZkProofCID(proofData.cid)
+        console.log('✅ ZK Proof generated:', proofData.proof)
+        console.log('📦 ZK Proof CID:', proofData.cid)
+
+        // Step 3b: Submit proof on-chain (requires wallet approval)
+        toast.loading('Step 3b: Submitting proof on-chain (approve in wallet)...', { id: 'zkproof' })
+        console.log('🔗 Submitting ZK proof to blockchain...')
+        
+        const provider = new BrowserProvider(walletClient as any)
+        const signer = await provider.getSigner()
+        
+        try {
+          const onChainResult = await submitProofOnChain(signer, proofData.proof, proofData.cid)
+          console.log('✅ Proof submitted on-chain!', onChainResult)
+          console.log('📝 Transaction hash:', onChainResult.transactionHash)
+          console.log('🔗 Block number:', onChainResult.blockNumber)
+          
+          toast.success(`ZK proof on-chain! Age ${ageVerified ? '✓' : '✗'} verified (${age} years old)`, { id: 'zkproof' })
+        } catch (onChainErr: any) {
+          console.error('❌ On-chain submission failed:', onChainErr)
+          toast.error('On-chain proof submission failed: ' + (onChainErr?.message || onChainErr), { id: 'zkproof' })
+          // Continue anyway - proof is still on Lighthouse
+        }
+      } catch (zkErr: any) {
+        console.error('❌ ZK proof error:', zkErr)
+        toast.error('Failed to generate/store ZK proof: ' + (zkErr?.message || zkErr), { id: 'zkproof' })
+      }
+      setIsGeneratingProof(false)
+
+      // Step 4: Mint DataCoin NFT with profile photo
+      console.log('🪙 Step 4: Minting DataCoin NFT...')
+      toast.loading('Step 4: Minting DataCoin with your verified data...', { id: 'datacoin' })
+      
+      try {
+        // Get ethers signer from wagmi wallet client
+        const provider = new BrowserProvider(walletClient as any)
+        const signer = await provider.getSigner()
+        
+        // Calculate age verification status for DataCoin metadata
+        const birthDate = new Date(dateOfBirth)
+        const today = new Date()
+        let userAge = today.getFullYear() - birthDate.getFullYear()
+        const monthDiff = today.getMonth() - birthDate.getMonth()
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+          userAge--
+        }
+        const isAgeVerified = userAge >= 18
+
+        // Mint DataCoin with profile photo and verification data
+        const mintResult = await mintDataCoin(signer, cid, {
+          name: `${fullName} - Verified Identity`,
+          description: 'Identity verification data with zkTLS proof stored on Lighthouse',
+          image: profilePreview, // Profile photo as NFT image
+          attributes: [
+            { trait_type: 'Full Name', value: fullName },
+            { trait_type: 'Age Verified', value: isAgeVerified ? 'Yes' : 'No' },
+            { trait_type: 'Document Type', value: documentType },
+            { trait_type: 'Verification Date', value: new Date().toLocaleDateString() }
+          ]
+        })
+        
+        console.log('✅ DataCoin minted!', mintResult)
+        console.log('💰 Amount:', mintResult.amount, 'tokens')
+        console.log('💰 Balance:', mintResult.balance, 'tokens')
+        console.log('📦 Contract:', mintResult.contractAddress)
+        
+        // Store mint info in localStorage WITH profile photo and name for display
+        setJSON(`dataCoin_${address}`, {
+          amount: mintResult.amount,
+          balance: mintResult.balance,
+          transactionHash: mintResult.transactionHash,
+          lighthouseCID: cid,
+          mintedAt: new Date().toISOString(),
+          // Store display data to avoid Lighthouse decryption issues
+          fullName: fullName,
+          profilePhoto: profilePreview,
+          documentType: documentType
+        })
+        
+        toast.success(`🎉 DataCoin tokens minted! Amount: ${mintResult.amount} tokens`, { id: 'datacoin', duration: 5000 })
+        
+        // Redirect to dashboard after successful minting
+        setTimeout(() => {
+          router.push('/dashboard')
+        }, 2000)
+      } catch (mintErr: any) {
+        console.error('❌ DataCoin minting failed:', mintErr)
+        toast.error('DataCoin minting failed: ' + (mintErr?.message || mintErr), { id: 'datacoin' })
+      }
 
       toast.success('🎉 Verification complete! Your data is encrypted and stored securely.', {
         id: 'encrypt',
@@ -286,13 +446,29 @@ export function DocumentVerificationForm({ onVerified }: { onVerified?: () => vo
       })
 
       // Store CID in localStorage for later retrieval
-      localStorage.setItem(`kycCID_${address}`, cid)
+      if (cid) {
+        safeLocalStorage.setItem(`kycCID_${address}`, cid)
+      }
 
       // Notify parent/stepper that verification completed
       if (onVerified) onVerified()
 
     } catch (error: any) {
       console.error('❌ Verification/Encryption failed:', error)
+  // Handler to retrieve and decrypt file from Lighthouse
+  const handleRetrieveFromLighthouse = async () => {
+    if (!encryptedCID || !walletClient) return
+    setIsRetrieving(true)
+    setRetrievedData('')
+    try {
+      const data = await lighthouseService.decryptAndRetrieve(encryptedCID, walletClient)
+      setRetrievedData(data)
+      toast.success('File retrieved and decrypted from Lighthouse!')
+    } catch (err: any) {
+      toast.error('Failed to retrieve/decrypt file: ' + (err?.message || err))
+    }
+    setIsRetrieving(false)
+  }
       
       let errorMessage = 'Verification failed'
       if (error.response?.data?.error) {
@@ -335,9 +511,21 @@ export function DocumentVerificationForm({ onVerified }: { onVerified?: () => vo
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="bg-gray-50 p-4 rounded-lg">
-            <Label className="text-sm font-medium">Encrypted Hash (Lighthouse CID):</Label>
+            <Label className="text-sm font-medium">Encrypted Data (Lighthouse CID):</Label>
             <code className="text-xs break-all block mt-1">{encryptedCID}</code>
           </div>
+          {zkProofCID && (
+            <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
+              <Label className="text-sm font-medium flex items-center gap-2">
+                <Shield className="w-4 h-4 text-blue-600" />
+                ZK Proof (Lighthouse CID):
+              </Label>
+              <code className="text-xs break-all block mt-1 text-blue-800">{zkProofCID}</code>
+              <p className="text-xs text-blue-600 mt-2">
+                ✓ Age verification proof stored securely on Lighthouse
+              </p>
+            </div>
+          )}
           <div className="flex flex-col gap-3">
             <Button 
               onClick={() => {
@@ -572,6 +760,56 @@ export function DocumentVerificationForm({ onVerified }: { onVerified?: () => vo
              isEncrypting ? 'Encrypting Data...' : 
              'Verify & Encrypt'}
           </Button>
+
+          {/* Display CID and Retrieve Button after upload */}
+          {encryptedCID && (
+            <div className="mt-6 p-4 rounded-lg border bg-gray-50 dark:bg-gray-900">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle className="text-green-600" />
+                <span className="font-semibold">Lighthouse CID:</span>
+                <span className="font-mono text-blue-700 dark:text-blue-300">{encryptedCID}</span>
+              </div>
+              <Button
+                onClick={handleRetrieveFromLighthouse}
+                disabled={isRetrieving || !walletClient}
+                className="bg-green-600 hover:bg-green-700 text-white font-bold mt-2"
+              >
+                {isRetrieving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {isRetrieving ? 'Retrieving...' : 'Retrieve from Lighthouse'}
+              </Button>
+              {retrievedData && (
+                <div className="mt-4 p-3 rounded bg-green-50 dark:bg-green-900/40 border">
+                  <div className="font-bold mb-2">Decrypted File Contents:</div>
+                  {/* Try to display as JSON, image, or text */}
+                  {(() => {
+                    try {
+                      const json = JSON.parse(retrievedData)
+                      return <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(json, null, 2)}</pre>
+                    } catch {
+                      // Not JSON, try image
+                      if (retrievedData.startsWith('data:image')) {
+                        return <img src={retrievedData} alt="Decrypted" className="max-w-full rounded shadow" />
+                      }
+                      // Otherwise, show as text
+                      return <pre className="text-xs whitespace-pre-wrap">{retrievedData}</pre>
+                    }
+                  })()}
+                </div>
+              )}
+              {/* Display ZK Proof CID after generation */}
+              {zkProofCID && (
+                <div className="mt-4 p-3 rounded bg-purple-50 dark:bg-purple-900/40 border">
+                  <div className="font-bold mb-2 text-purple-700 dark:text-purple-300">ZK Proof CID (Lighthouse):</div>
+                  <span className="font-mono text-purple-700 dark:text-purple-300">{zkProofCID}</span>
+                </div>
+              )}
+              {isGeneratingProof && (
+                <div className="mt-4 text-purple-700 dark:text-purple-300 flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Generating ZK proof...
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
