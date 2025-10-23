@@ -28,7 +28,7 @@ const [identityCommitment, setIdentityCommitment] = useState<string>('')
 // 2. FILE UPLOAD HANDLER
 // ========================================
 
-const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, p0: string) => {
   const file = e.target.files?.[0]
   if (!file) return
 
