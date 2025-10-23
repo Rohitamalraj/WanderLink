@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Search, MapPin, Users, Calendar, DollarSign, Filter, X, Sparkles, Plus } from 'lucide-react'
 import { mockTrips } from '@/lib/mock-data'
 import { formatDate, calculateDays } from '@/lib/utils'
-import JoinTripModal, { type UserPreferences } from '@/components/JoinTripModal'
+import NLPTripModal from '@/components/NLPTripModal'
 import MatchResultsModal from '@/components/MatchResultsModal'
 import CreateGroupModal from '@/components/CreateGroupModal'
 
@@ -42,60 +42,16 @@ export default function TripsPage() {
     setShowJoinModal(true)
   }
 
-  // Helper function to find matches directly
-  const findMatchesDirectly = async (currentUserId: string, preferences: UserPreferences) => {
-    console.log('🔎 Finding matches directly...')
-    const matchResponse = await fetch('/api/trips/find-matches', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: currentUserId,
-        preferences: {
-          preferred_destinations: preferences.preferred_destinations || [],
-          budget_min: preferences.budget_min || 500,
-          budget_max: preferences.budget_max || 5000,
-          interests: preferences.interests || [],
-          travel_pace: preferences.travel_pace || 'moderate',
-          activities: preferences.interests?.reduce((acc: any, interest: string) => {
-            acc[interest.toLowerCase()] = 0.8
-            return acc
-          }, {}) || {},
-          travel_style: {
-            luxury: preferences.accommodation_types?.includes('Resort') ? 0.8 : 0.4,
-            social: 0.7,
-            cultural: preferences.interests?.includes('Culture') ? 0.9 : 0.5
-          }
-        },
-        searchCriteria: {},
-      }),
-    })
-    
-    if (!matchResponse.ok) {
-      const errorData = await matchResponse.json()
-      throw new Error(errorData.error || 'Failed to find matches')
-    }
-    
-    const matchData = await matchResponse.json()
-    console.log('📊 Match results:', matchData)
-
-    if (matchData.matches && matchData.matches.length > 0) {
-      console.log(`✅ Found ${matchData.matches.length} matches!`)
-      setMatches(matchData.matches)
-    } else {
-      console.log('⚠️ No matches found')
-      setMatches([])
-    }
-  }
-
-  const handleSubmitPreferences = async (preferences: UserPreferences) => {
-    console.log('🔍 Starting match finding process...')
-    console.log('📋 User preferences:', preferences)
+  // Handle NLP trip description submission
+  const handleNLPSubmit = async (nlpInput: string) => {
+    console.log('🔎 Processing NLP input for trip matching...')
+    console.log('📝 User message:', nlpInput)
     
     setLoadingMatches(true)
     setShowMatchResults(true)
 
     try {
-      // Generate a user ID directly (bypass Supabase RLS issues)
+      // Generate a user ID directly
       const currentUserId = localStorage.getItem('wanderlink_user_id') || 
         `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
       
@@ -103,13 +59,38 @@ export default function TripsPage() {
       localStorage.setItem('wanderlink_user_id', currentUserId)
       setUserId(currentUserId)
 
-      // Skip user creation, preferences saving, and agent creation
-      // Go directly to match finding (the only critical step)
-      console.log('🔎 Finding matches...')
-      await findMatchesDirectly(currentUserId, preferences)
+      // Call Agent Service with NLP input
+      console.log('🔎 Sending NLP input to Agent Service...')
+      const agentServiceUrl = process.env.NEXT_PUBLIC_AGENT_SERVICE_URL || 'http://localhost:8000'
+      
+      const matchResponse = await fetch(`${agentServiceUrl}/api/find-matches-nlp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUserId,
+          nlpInput: nlpInput,
+          timestamp: new Date().toISOString()
+        }),
+      })
+      
+      if (!matchResponse.ok) {
+        const errorData = await matchResponse.json()
+        throw new Error(errorData.error || 'Failed to process your trip description')
+      }
+      
+      const matchData = await matchResponse.json()
+      console.log('📊 AI Match results:', matchData)
+
+      if (matchData.matches && matchData.matches.length > 0) {
+        console.log(`✅ Found ${matchData.matches.length} matches!`)
+        setMatches(matchData.matches)
+      } else {
+        console.log('⚠️ No matches found')
+        setMatches([])
+      }
       
     } catch (error: any) {
-      console.error('Error finding matches:', error)
+      console.error('Error processing trip description:', error)
       alert(`Failed to find matches: ${error.message || 'Please try again.'}`)
       setMatches([])
     } finally {
@@ -337,10 +318,10 @@ export default function TripsPage() {
         }}
       />
       
-      <JoinTripModal
+      <NLPTripModal
         isOpen={showJoinModal}
         onClose={() => setShowJoinModal(false)}
-        onSubmit={handleSubmitPreferences}
+        onSubmit={handleNLPSubmit}
       />
 
       <MatchResultsModal
