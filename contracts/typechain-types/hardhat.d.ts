@@ -97,6 +97,10 @@ declare module "hardhat/types/runtime" {
       name: "TripNFT",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.TripNFT__factory>;
+    getContractFactory(
+      name: "ZKProofVerifier",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.ZKProofVerifier__factory>;
 
     getContractAt(
       name: "AccessControl",
@@ -203,6 +207,11 @@ declare module "hardhat/types/runtime" {
       address: string | ethers.Addressable,
       signer?: ethers.Signer
     ): Promise<Contracts.TripNFT>;
+    getContractAt(
+      name: "ZKProofVerifier",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.ZKProofVerifier>;
 
     deployContract(
       name: "AccessControl",
@@ -288,6 +297,10 @@ declare module "hardhat/types/runtime" {
       name: "TripNFT",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.TripNFT>;
+    deployContract(
+      name: "ZKProofVerifier",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.ZKProofVerifier>;
 
     deployContract(
       name: "AccessControl",
@@ -394,6 +407,11 @@ declare module "hardhat/types/runtime" {
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.TripNFT>;
+    deployContract(
+      name: "ZKProofVerifier",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.ZKProofVerifier>;
 
     // default types
     getContractFactory(
