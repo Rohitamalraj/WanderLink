@@ -243,7 +243,7 @@ async function runMockDemo() {
 
 // Main
 async function main() {
-  const useRealAPI = process.env.FETCHAI_API_KEY ? true : false;
+  const useRealAPI = Boolean(process.env.FETCHAI_API_KEY);
 
   if (useRealAPI) {
     console.log('🔑 API key found - using real Fetch.ai API\n');

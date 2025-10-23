@@ -4,3 +4,4 @@
 export { ReputationSBT__factory } from "./ReputationSBT__factory";
 export { TripEscrow__factory } from "./TripEscrow__factory";
 export { TripNFT__factory } from "./TripNFT__factory";
+export { ZKProofVerifier__factory } from "./ZKProofVerifier__factory";

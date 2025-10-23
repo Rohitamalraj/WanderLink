@@ -4,3 +4,4 @@
 export type { ReputationSBT } from "./ReputationSBT";
 export type { TripEscrow } from "./TripEscrow";
 export type { TripNFT } from "./TripNFT";
+export type { ZKProofVerifier } from "./ZKProofVerifier";

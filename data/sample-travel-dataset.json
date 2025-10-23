@@ -1,0 +1,224 @@
+{
+  "dataset_name": "WanderLink Travel Data",
+  "version": "1.0.0",
+  "created_at": "2025-10-21",
+  "description": "Verified travel bookings and reviews from WanderLink platform",
+  "total_records": 50,
+  "data": [
+    {
+      "id": "trip_001",
+      "destination": "Bali, Indonesia",
+      "traveler_address": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+      "booking_date": "2025-09-15",
+      "travel_dates": {
+        "start": "2025-11-01",
+        "end": "2025-11-07"
+      },
+      "trip_cost_usd": 1200,
+      "group_size": 4,
+      "activities": ["surfing", "temple visits", "beach", "local cuisine"],
+      "verification_status": "zkTLS_verified",
+      "booking_platform": "Airbnb",
+      "review": {
+        "rating": 5,
+        "comment": "Amazing experience! Met incredible people and explored hidden gems.",
+        "verified": true
+      }
+    },
+    {
+      "id": "trip_002",
+      "destination": "Tokyo, Japan",
+      "traveler_address": "0x8ba1f109551bD432803012645Ac136ddd64DBA72",
+      "booking_date": "2025-08-20",
+      "travel_dates": {
+        "start": "2025-10-15",
+        "end": "2025-10-22"
+      },
+      "trip_cost_usd": 2500,
+      "group_size": 3,
+      "activities": ["sightseeing", "food tours", "shopping", "anime culture"],
+      "verification_status": "zkTLS_verified",
+      "booking_platform": "Booking.com",
+      "review": {
+        "rating": 5,
+        "comment": "Best trip ever! The AI matching worked perfectly - our group had amazing chemistry.",
+        "verified": true
+      }
+    },
+    {
+      "id": "trip_003",
+      "destination": "Barcelona, Spain",
+      "traveler_address": "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
+      "booking_date": "2025-07-10",
+      "travel_dates": {
+        "start": "2025-09-01",
+        "end": "2025-09-08"
+      },
+      "trip_cost_usd": 1800,
+      "group_size": 5,
+      "activities": ["architecture", "nightlife", "beach", "tapas tours"],
+      "verification_status": "zkTLS_verified",
+      "booking_platform": "Expedia",
+      "review": {
+        "rating": 4,
+        "comment": "Great city, wonderful group. Minor hiccups with accommodation but overall fantastic.",
+        "verified": true
+      }
+    },
+    {
+      "id": "trip_004",
+      "destination": "Iceland",
+      "traveler_address": "0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359",
+      "booking_date": "2025-06-05",
+      "travel_dates": {
+        "start": "2025-08-10",
+        "end": "2025-08-17"
+      },
+      "trip_cost_usd": 3200,
+      "group_size": 4,
+      "activities": ["northern lights", "glacier hiking", "hot springs", "photography"],
+      "verification_status": "zkTLS_verified",
+      "booking_platform": "TripAdvisor",
+      "review": {
+        "rating": 5,
+        "comment": "Breathtaking landscapes and perfect travel companions. WanderLink's AI matching is spot on!",
+        "verified": true
+      }
+    },
+    {
+      "id": "trip_005",
+      "destination": "Machu Picchu, Peru",
+      "traveler_address": "0xdbF03B407c01E7cD3CBea99509d93f8DDDC8C6FB",
+      "booking_date": "2025-09-01",
+      "travel_dates": {
+        "start": "2025-12-01",
+        "end": "2025-12-10"
+      },
+      "trip_cost_usd": 2200,
+      "group_size": 6,
+      "activities": ["hiking", "history", "local culture", "adventure"],
+      "verification_status": "zkTLS_verified",
+      "booking_platform": "Viator",
+      "review": {
+        "rating": 5,
+        "comment": "Life-changing experience. The group was perfect - all adventure seekers with similar fitness levels.",
+        "verified": true
+      }
+    },
+    {
+      "id": "trip_006",
+      "destination": "Santorini, Greece",
+      "traveler_address": "0xD1220A0cf47c7B9Be7A2E6BA89F429762e7b9aDb",
+      "booking_date": "2025-05-15",
+      "travel_dates": {
+        "start": "2025-07-20",
+        "end": "2025-07-27"
+      },
+      "trip_cost_usd": 2800,
+      "group_size": 3,
+      "activities": ["sunset views", "wine tasting", "sailing", "photography"],
+      "verification_status": "zkTLS_verified",
+      "booking_platform": "Hotels.com",
+      "review": {
+        "rating": 5,
+        "comment": "Romantic and beautiful. Great company for enjoying the sunsets and exploring the island.",
+        "verified": true
+      }
+    },
+    {
+      "id": "trip_007",
+      "destination": "Dubai, UAE",
+      "traveler_address": "0x2546BcD3c84621e976D8185a91A922aE77ECEc30",
+      "booking_date": "2025-08-01",
+      "travel_dates": {
+        "start": "2025-10-01",
+        "end": "2025-10-06"
+      },
+      "trip_cost_usd": 3500,
+      "group_size": 4,
+      "activities": ["luxury", "shopping", "desert safari", "skyscrapers"],
+      "verification_status": "zkTLS_verified",
+      "booking_platform": "Agoda",
+      "review": {
+        "rating": 4,
+        "comment": "Luxurious and fun. The group enjoyed the high-end experiences together.",
+        "verified": true
+      }
+    },
+    {
+      "id": "trip_008",
+      "destination": "New Zealand",
+      "traveler_address": "0xbDA5747bFD65F08deb54cb465eB87D40e51B197E",
+      "booking_date": "2025-07-20",
+      "travel_dates": {
+        "start": "2025-11-15",
+        "end": "2025-11-25"
+      },
+      "trip_cost_usd": 4000,
+      "group_size": 5,
+      "activities": ["extreme sports", "nature", "LOTR locations", "hiking"],
+      "verification_status": "zkTLS_verified",
+      "booking_platform": "Kayak",
+      "review": {
+        "rating": 5,
+        "comment": "Adventure of a lifetime! Perfect group for trying bungee jumping and skydiving together.",
+        "verified": true
+      }
+    },
+    {
+      "id": "trip_009",
+      "destination": "Morocco",
+      "traveler_address": "0xdd870fA1b7C4700F2BD7f44238821C26f7392148",
+      "booking_date": "2025-06-10",
+      "travel_dates": {
+        "start": "2025-09-15",
+        "end": "2025-09-22"
+      },
+      "trip_cost_usd": 1500,
+      "group_size": 4,
+      "activities": ["desert", "markets", "culture", "food"],
+      "verification_status": "zkTLS_verified",
+      "booking_platform": "GetYourGuide",
+      "review": {
+        "rating": 5,
+        "comment": "Exotic and fascinating. The group was culturally curious and open-minded.",
+        "verified": true
+      }
+    },
+    {
+      "id": "trip_010",
+      "destination": "Thailand",
+      "traveler_address": "0x583031D1113aD414F02576BD6afaBfb302140225",
+      "booking_date": "2025-08-15",
+      "travel_dates": {
+        "start": "2025-12-10",
+        "end": "2025-12-20"
+      },
+      "trip_cost_usd": 1600,
+      "group_size": 6,
+      "activities": ["beaches", "temples", "street food", "island hopping"],
+      "verification_status": "zkTLS_verified",
+      "booking_platform": "Hostelworld",
+      "review": {
+        "rating": 5,
+        "comment": "Budget-friendly paradise! Met amazing backpackers through WanderLink.",
+        "verified": true
+      }
+    }
+  ],
+  "statistics": {
+    "avg_trip_cost_usd": 2390,
+    "avg_group_size": 4.4,
+    "avg_rating": 4.9,
+    "most_popular_destination": "Bali, Indonesia",
+    "verification_rate": 100,
+    "total_travelers": 44
+  },
+  "metadata": {
+    "data_source": "WanderLink Platform",
+    "verification_method": "zkTLS (Reclaim Protocol)",
+    "encryption": "Lighthouse Storage",
+    "access_control": "Wallet-based",
+    "last_updated": "2025-10-21"
+  }
+}

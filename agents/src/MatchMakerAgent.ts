@@ -153,9 +153,9 @@ export class MatchMakerAgent {
     }));
 
     // Balance synergy (70%) and diversity (30%)
-    synergyMatrix.forEach(item => {
+    for (const item of synergyMatrix) {
       item.balancedScore = item.synergy * 0.7 + item.diversity * 0.3;
-    });
+    }
 
     // Sort by balanced score
     synergyMatrix.sort((a, b) => b.balancedScore - a.balancedScore);
@@ -315,9 +315,13 @@ export class MatchMakerAgent {
 
     // Merge activities (union of all suggestions)
     const allActivities = new Set<string>(merged.activities);
-    counterProposals.forEach(cp => {
-      cp.activities?.forEach(act => allActivities.add(act));
-    });
+    for (const cp of counterProposals) {
+      if (cp.activities) {
+        for (const act of cp.activities) {
+          allActivities.add(act);
+        }
+      }
+    }
     merged.activities = Array.from(allActivities).slice(0, 8);
 
     return merged;
@@ -361,7 +365,7 @@ export class MatchMakerAgent {
       duration: session.completedAt 
         ? session.completedAt.getTime() - session.startedAt.getTime()
         : Date.now() - session.startedAt.getTime(),
-      finalSynergyScore: session.proposals[session.proposals.length - 1]?.synergyScore
+      finalSynergyScore: session.proposals.at(-1)?.synergyScore
     };
   }
 }

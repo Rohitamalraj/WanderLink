@@ -1,6 +1,7 @@
 import { createConfig } from 'wagmi'
+import { sepolia } from 'wagmi/chains'
 import type { Chain } from 'wagmi/chains'
-import { injected } from '@wagmi/connectors'
+import { injected, walletConnect } from '@wagmi/connectors'
 
 
 export const hedera: Chain = {
@@ -21,7 +22,7 @@ export const hedera: Chain = {
   testnet: true,
 }
 
-export const chains = [hedera]
+export const chains: [Chain, ...Chain[]] = [hedera, sepolia]
 
 export const config = createConfig({
   chains,
@@ -29,6 +30,10 @@ export const config = createConfig({
     injected({
       target: 'metaMask',
       shimDisconnect: true,
+    }),
+    walletConnect({
+      projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '',
+      showQrModal: true,
     }),
   ],
   ssr: false,

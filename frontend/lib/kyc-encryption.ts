@@ -1,65 +1,82 @@
-import { litService } from './lit-protocol'
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { lighthouseService } from './lighthouse-storage'
+import { ethers } from 'ethers'
 
 export interface KYCData {
   email: string
   fullName?: string
   phoneNumber?: string
-  photoHash?: string // IPFS hash of photo
-  documentHash?: string // IPFS hash of ID document
+  photoHash?: string // Lighthouse CID of photo
+  documentHash?: string // Lighthouse CID of ID document
   worldIDVerified: boolean
   verificationTier: 'Basic' | 'Standard' | 'Full'
   timestamp: number
 }
 
 /**
- * Encrypt KYC data using Lit Protocol
+ * Encrypt KYC data using Lighthouse Storage
  * Only the user's wallet can decrypt this data
  */
 export async function encryptKYCData(
   kycData: KYCData,
-  walletAddress: string
+  walletSigner: any // Wagmi wallet client
 ): Promise<{
-  encryptedData: string
+  cid: string // Lighthouse CID
   dataHash: string
-  accessConditions: any[]
 }> {
-  // Get access conditions - only this wallet can decrypt
-  const accessConditions = litService.getWalletAccessConditions(walletAddress)
+  // Get wallet address from Wagmi v2 client
+  const walletAddress = walletSigner.account.address
 
-  // Encrypt the data
-  const { ciphertext, dataToEncryptHash } = await litService.encryptData(
+  // Get access conditions - only this wallet can decrypt
+  const accessConditions = lighthouseService.getWalletAccessConditions(walletAddress)
+
+  // Encrypt and upload the data to Lighthouse
+  const { cid, fileHash } = await lighthouseService.encryptAndUpload(
     JSON.stringify(kycData),
-    accessConditions
+    accessConditions,
+    walletSigner
   )
 
   return {
-    encryptedData: ciphertext,
-    dataHash: dataToEncryptHash,
-    accessConditions,
+    cid,
+    dataHash: fileHash,
   }
 }
 
 /**
- * Decrypt KYC data using Lit Protocol
+ * Decrypt KYC data using Lighthouse Storage
  * Requires user to sign authentication message
  */
 export async function decryptKYCData(
-  encryptedData: string,
-  dataHash: string,
-  accessConditions: any[]
+  cid: string,
+  walletSigner: any // Wagmi wallet client
 ): Promise<KYCData> {
-  // Get authentication signature from user
-  const authSig = await litService.getAuthSig()
-
-  // Decrypt the data
-  const decryptedString = await litService.decryptData(
-    encryptedData,
-    dataHash,
-    accessConditions,
-    authSig
+  // Decrypt the data from Lighthouse
+  const decryptedString = await lighthouseService.decryptAndRetrieve(
+    cid,
+    walletSigner
   )
 
   return JSON.parse(decryptedString) as KYCData
+}
+
+/**
+ * Upload KYC document (photo/ID) to Lighthouse with encryption
+ */
+export async function uploadKYCDocument(
+  file: File,
+  walletSigner: any // Wagmi wallet client
+): Promise<string> {
+  const walletAddress = walletSigner.account.address
+  const accessConditions = lighthouseService.getWalletAccessConditions(walletAddress)
+  
+  const { cid } = await lighthouseService.encryptAndUpload(
+    file,
+    accessConditions,
+    walletSigner
+  )
+  
+  return cid
 }
 
 /**
@@ -67,13 +84,24 @@ export async function decryptKYCData(
  * This hash can be used to verify KYC without revealing data
  */
 export function generateKYCHash(
-  encryptedData: string,
+  cid: string,
   dataHash: string
 ): string {
-  // Combine encrypted data and hash, then hash again
+  // Combine CID and hash, then hash again
   // This creates a verifiable commitment to the KYC data
-  const combined = encryptedData + dataHash
+  const combined = cid + dataHash
   
-  // Create a simple hash (in production, use proper hashing)
-  return `0x${Buffer.from(combined).toString('hex').slice(0, 64)}`
+  // Create a simple hash (in production, use proper hashing with ethers)
+  return ethers.keccak256(ethers.toUtf8Bytes(combined))
+}
+
+/**
+ * Share KYC access with trip group members (for safety verification)
+ */
+export async function shareKYCWithGroup(
+  cid: string,
+  groupMemberAddresses: string[],
+  walletSigner: any // Wagmi wallet client
+): Promise<void> {
+  await lighthouseService.shareAccess(cid, groupMemberAddresses, walletSigner)
 }
