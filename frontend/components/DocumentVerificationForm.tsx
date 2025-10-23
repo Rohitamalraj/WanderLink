@@ -16,7 +16,7 @@ import Image from 'next/image'
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 const LIGHTHOUSE_API_KEY = process.env.NEXT_PUBLIC_LIGHTHOUSE_API_KEY || ''
 
-export function DocumentVerificationForm() {
+export function DocumentVerificationForm({ onVerified }: { onVerified?: () => void }) {
   const { address, isConnected } = useAccount()
   const { data: walletClient } = useWalletClient()
   
@@ -30,6 +30,8 @@ export function DocumentVerificationForm() {
   const [documentNumber, setDocumentNumber] = useState('')
   const [documentPhoto, setDocumentPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string>('')
+  const [profilePhoto, setProfilePhoto] = useState<File | null>(null)
+  const [profilePreview, setProfilePreview] = useState<string>('')
   
   // Status state
   const [isVerifying, setIsVerifying] = useState(false)
@@ -60,14 +62,16 @@ export function DocumentVerificationForm() {
     initLighthouse()
   }, [])
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'document' | 'profile') => {
     const file = e.target.files?.[0]
     if (!file) return
 
     // Validate file type
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf']
+    const validTypes = type === 'document'
+      ? ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf']
+      : ['image/jpeg', 'image/jpg', 'image/png']
     if (!validTypes.includes(file.type)) {
-      toast.error('Only JPEG, PNG, or PDF files allowed')
+      toast.error(type === 'document' ? 'Only JPEG, PNG, or PDF files allowed' : 'Only JPEG or PNG files allowed')
       return
     }
 
@@ -77,17 +81,24 @@ export function DocumentVerificationForm() {
       return
     }
 
-    setDocumentPhoto(file)
-
-    // Generate preview for images
-    if (file.type.startsWith('image/')) {
+    if (type === 'document') {
+      setDocumentPhoto(file)
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader()
+        reader.onloadend = () => {
+          setPhotoPreview(reader.result as string)
+        }
+        reader.readAsDataURL(file)
+      } else {
+        setPhotoPreview('')
+      }
+    } else {
+      setProfilePhoto(file)
       const reader = new FileReader()
       reader.onloadend = () => {
-        setPhotoPreview(reader.result as string)
+        setProfilePreview(reader.result as string)
       }
       reader.readAsDataURL(file)
-    } else {
-      setPhotoPreview('')
     }
   }
 
@@ -130,7 +141,10 @@ export function DocumentVerificationForm() {
       toast.error('Document photo is required')
       return false
     }
-    
+    if (!profilePhoto) {
+      toast.error('Profile photo is required')
+      return false
+    }
     return true
   }
 
@@ -161,6 +175,9 @@ export function DocumentVerificationForm() {
       formData.append('walletAddress', address)
       if (documentPhoto) {
         formData.append('document', documentPhoto)
+      }
+      if (profilePhoto) {
+        formData.append('profilePhoto', profilePhoto)
       }
 
       const verifyResponse = await fetch(`${BACKEND_URL}/api/identity/verify-document`, {
@@ -237,29 +254,42 @@ export function DocumentVerificationForm() {
         documentNumber,
         walletAddress: address,
         verifiedAt: new Date().toISOString(),
-        documentHash: verifyData.metadata?.documentHash || '',
-        ageVerified: verifyData.metadata?.age >= 18,
+  documentHash: verifyData.metadata?.documentHash || '',
+  ageVerified: verifyData.metadata?.age >= 18,
+  profilePhoto: profilePreview,
       }
 
-      // Encrypt and upload to Lighthouse
-      const { cid } = await lighthouseService.encryptAndUpload(
-        JSON.stringify(kycData),
-        walletClient
-      )
+      // Encrypt and upload to Lighthouse (no backend fallback)
+      let cid: string | null = null
+      try {
+        const uploadResult = await lighthouseService.encryptAndUpload(
+          JSON.stringify(kycData),
+          walletClient
+        )
+        cid = uploadResult.cid
+      } catch (lhErr) {
+        console.error('Lighthouse upload failed:', lhErr)
+        toast.error('Lighthouse upload failed. Please try again.\n' + (lhErr?.message || lhErr), { id: 'encrypt', duration: 10000 })
+        setIsEncrypting(false)
+        return
+      }
 
       console.log('✅ Data encrypted and stored in Lighthouse')
       console.log('📦 Lighthouse CID:', cid)
-      
+
       setEncryptedCID(cid)
       setIsEncrypting(false)
-      
-      toast.success('🎉 Verification complete! Your data is encrypted and stored securely.', { 
+
+      toast.success('🎉 Verification complete! Your data is encrypted and stored securely.', {
         id: 'encrypt',
-        duration: 5000 
+        duration: 5000
       })
 
       // Store CID in localStorage for later retrieval
       localStorage.setItem(`kycCID_${address}`, cid)
+
+      // Notify parent/stepper that verification completed
+      if (onVerified) onVerified()
 
     } catch (error: any) {
       console.error('❌ Verification/Encryption failed:', error)
@@ -320,6 +350,8 @@ export function DocumentVerificationForm() {
                 setDocumentNumber('')
                 setDocumentPhoto(null)
                 setPhotoPreview('')
+                setProfilePhoto(null)
+                setProfilePreview('')
               }}
               variant="outline"
               className="w-full"
@@ -333,6 +365,30 @@ export function DocumentVerificationForm() {
               className="w-full bg-gradient-to-r from-green-500 to-blue-500 text-white font-bold"
             >
               Go to Dashboard
+            </Button>
+            <Button
+              onClick={async () => {
+                // Stub: Mint DataCoin reward (call backend)
+                toast.loading('Minting DataCoin reward...')
+                try {
+                  const mintRes = await fetch(`${BACKEND_URL}/api/identity/mint-datacoin`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ address, cid: encryptedCID })
+                  })
+                  const mintData = await mintRes.json()
+                  if (mintRes.ok && mintData.success) {
+                    toast.success('DataCoin minted and sent to your wallet!')
+                  } else {
+                    toast.error(mintData.error || 'Minting failed')
+                  }
+                } catch (err) {
+                  toast.error('Minting failed')
+                }
+              }}
+              className="w-full bg-gradient-to-r from-yellow-500 to-green-500 text-white font-bold"
+            >
+              Mint DataCoin Reward
             </Button>
           </div>
         </CardContent>
@@ -355,10 +411,10 @@ export function DocumentVerificationForm() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-8">
-          {/* Personal Information */}
-          <div className="space-y-4">
+          {/* Step 1: Personal Information */}
+          <div className="space-y-4 border-b pb-6 mb-6">
             <h3 className="font-bold text-xl text-blue-700 dark:text-blue-300 flex items-center gap-2">
-              👤 <span>Personal Information</span>
+              1️⃣ 👤 <span>Personal Information</span>
             </h3>
             <div>
               <Label htmlFor="fullName">Full Name *</Label>
@@ -418,10 +474,39 @@ export function DocumentVerificationForm() {
               />
             </div>
           </div>
-          {/* Document Information */}
+          {/* Step 2: Profile Photo */}
+          <div className="space-y-4 border-b pb-6 mb-6">
+            <h3 className="font-bold text-xl text-green-700 dark:text-green-300 flex items-center gap-2">
+              2️⃣ 🖼️ <span>Profile Photo</span>
+            </h3>
+            <div>
+              <Label htmlFor="profilePhoto">Profile Photo * (JPEG, PNG - Max 5MB)</Label>
+              <Input
+                id="profilePhoto"
+                type="file"
+                accept="image/jpeg,image/jpg,image/png"
+                onChange={(e) => handleFileChange(e, 'profile')}
+                disabled={isVerifying || isEncrypting}
+                className="bg-green-50/60 dark:bg-green-900/30"
+              />
+            </div>
+            {profilePreview && (
+              <div className="mt-4 flex flex-col items-center">
+                <Image
+                  src={profilePreview}
+                  alt="Profile preview"
+                  width={200}
+                  height={200}
+                  className="w-32 h-32 rounded-full border-4 border-green-300 shadow-lg object-cover"
+                />
+                <p className="mt-2 text-sm text-green-700 dark:text-green-300">Profile preview</p>
+              </div>
+            )}
+          </div>
+          {/* Step 3: Document Information */}
           <div className="space-y-4">
             <h3 className="font-bold text-xl text-pink-700 dark:text-pink-300 flex items-center gap-2">
-              🪪 <span>Document Information</span>
+              3️⃣ 🪪 <span>Document Information</span>
             </h3>
             <div>
               <Label htmlFor="docType">Document Type *</Label>
@@ -454,7 +539,7 @@ export function DocumentVerificationForm() {
                 id="docPhoto"
                 type="file"
                 accept="image/jpeg,image/jpg,image/png,application/pdf"
-                onChange={handleFileChange}
+                onChange={(e) => handleFileChange(e, 'document')}
                 disabled={isVerifying || isEncrypting}
                 className="bg-purple-50/60 dark:bg-purple-900/30"
               />
@@ -473,6 +558,7 @@ export function DocumentVerificationForm() {
               </div>
             )}
           </div>
+          
           {/* Submit Button */}
           <Button
             onClick={handleVerifyAndEncrypt}
@@ -491,5 +577,3 @@ export function DocumentVerificationForm() {
     </div>
   )
 }
-
-

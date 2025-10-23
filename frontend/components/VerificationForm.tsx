@@ -1,12 +1,14 @@
 'use client'
 
-import { useState } from 'react'
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { useState, useEffect } from 'react'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useWalletClient } from 'wagmi'
 import { getContracts } from '@/lib/contracts/config'
 import { encryptKYCData, generateKYCHash, type KYCData } from '@/lib/kyc-encryption'
+import { lighthouseService } from '@/lib/lighthouse-storage'
 
 export function VerificationForm() {
   const { address, chainId } = useAccount()
+  const { data: walletClient } = useWalletClient()
   const contracts = chainId ? getContracts(chainId) : null
 
   const [formData, setFormData] = useState({
@@ -22,13 +24,24 @@ export function VerificationForm() {
     hash,
   })
 
+  // Initialize Lighthouse on mount
+  useEffect(() => {
+    const apiKey = process.env.NEXT_PUBLIC_LIGHTHOUSE_API_KEY
+    if (apiKey) {
+      lighthouseService.initialize(String(apiKey))
+    }
+  }, [])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!address || !contracts) return
+    if (!address || !contracts || !walletClient) {
+      setStatus('❌ Please connect your wallet first')
+      return
+    }
 
     try {
       setIsEncrypting(true)
-      setStatus('🔐 Encrypting your KYC data with Lit Protocol...')
+      setStatus('🔐 Encrypting your KYC data with Lighthouse Storage...')
 
       // Create KYC data object
       const kycData: KYCData = {
@@ -40,16 +53,16 @@ export function VerificationForm() {
         timestamp: Date.now(),
       }
 
-      // Encrypt data with Lit Protocol
-      const { encryptedData, dataHash, accessConditions } = await encryptKYCData(
+      // Encrypt data with Lighthouse
+      const { cid, dataHash } = await encryptKYCData(
         kycData,
-        address
+        walletClient
       )
 
       setStatus('📝 Generating on-chain commitment...')
 
       // Generate KYC hash for on-chain storage
-      const kycHash = generateKYCHash(encryptedData, dataHash)
+      const kycHash = generateKYCHash(cid, dataHash)
 
       setStatus('✍️ Minting your Verification SBT...')
 
@@ -68,7 +81,15 @@ export function VerificationForm() {
       setStatus('⏳ Waiting for transaction confirmation...')
     } catch (error) {
       console.error('Error encrypting KYC:', error)
-      setStatus('❌ Error: ' + (error as Error).message)
+      const errorMessage = (error as Error).message
+      
+      if (errorMessage.includes('Network error')) {
+        setStatus(
+          '⚠️ Network Error: Please check your internet connection and try again.'
+        )
+      } else {
+        setStatus('❌ Error: ' + errorMessage)
+      }
     } finally {
       setIsEncrypting(false)
     }
@@ -93,6 +114,15 @@ export function VerificationForm() {
   return (
     <div className="max-w-md mx-auto p-6 bg-white border rounded-lg shadow-sm">
       <h2 className="text-2xl font-bold mb-4">Verify Your Identity</h2>
+      
+      {/* Lit Protocol Info */}
+      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
+        <p className="text-blue-800 font-semibold">🔐 Lit Protocol Testnet</p>
+        <p className="text-blue-700 text-xs mt-1">
+          Using decentralized encryption. No API keys required.
+        </p>
+      </div>
+      
       <p className="text-gray-600 mb-6">
         Your data will be encrypted with Lit Protocol. Only you can decrypt it.
       </p>

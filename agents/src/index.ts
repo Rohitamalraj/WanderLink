@@ -153,14 +153,14 @@ async function runMatchingDemo() {
   const matches = await matchMaker.findMatches('agent-alice');
   
   console.log(`\nFound ${matches.length} potential matches:`);
-  matches.forEach((match, idx) => {
+  for (const [idx, match] of matches.entries()) {
     console.log(`\nMatch ${idx + 1}:`);
     console.log(`  - Group size: ${match.agents.length}`);
     console.log(`  - Synergy score: ${match.synergyScore}%`);
     console.log(`  - Dates: ${match.dates.start.toISOString().split('T')[0]} to ${match.dates.end.toISOString().split('T')[0]}`);
     console.log(`  - Estimated cost: $${match.estimatedCost.toFixed(2)}`);
     console.log(`  - Activities: ${match.activities.join(', ')}`);
-  });
+  }
 
   // Select best match
   if (matches.length > 0) {

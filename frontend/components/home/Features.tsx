@@ -21,7 +21,7 @@ const features = [
   {
     icon: SparklesIcon,
     title: 'Privacy-First',
-    description: 'Lit Protocol encrypts your KYC data. Agents work on embeddings, not raw personal information.',
+    description: 'Lighthouse Storage encrypts your KYC data. Agents work on embeddings, not raw personal information.',
   },
   {
     icon: BoltIcon,
