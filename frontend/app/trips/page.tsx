@@ -59,39 +59,63 @@ export default function TripsPage() {
       localStorage.setItem('wanderlink_user_id', currentUserId)
       setUserId(currentUserId)
 
-      // Call Agent Service with NLP input
-      console.log('🔎 Sending NLP input to Agent Service...')
+      // STEP 1: Send to Travel Agent on Agentverse AND extract preferences locally
+      console.log('🤖 Sending request to Travel Agent on Agentverse...')
       const agentServiceUrl = process.env.NEXT_PUBLIC_AGENT_SERVICE_URL || 'http://localhost:8000'
       
-      const matchResponse = await fetch(`${agentServiceUrl}/api/find-matches-nlp`, {
+      // Use hybrid endpoint: Extract preferences + Send to Agentverse
+      const extractResponse = await fetch(`${agentServiceUrl}/api/extract-preferences-and-send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: currentUserId,
-          nlpInput: nlpInput,
-          timestamp: new Date().toISOString()
+          nlpInput: nlpInput
+        }),
+      })
+      
+      if (!extractResponse.ok) {
+        const errorData = await extractResponse.json()
+        throw new Error(errorData.detail || 'Failed to send to Travel Agent on Agentverse')
+      }
+      
+      const extractData = await extractResponse.json()
+      console.log('✅ Travel Agent extracted preferences:', extractData.preferences)
+      console.log('✅ Message sent to Agentverse:', extractData.agent_response)
+      console.log('📋 Task ID for tracking:', extractData.task_id)
+
+      // STEP 2: Find matches using the extracted preferences
+      // The MatchMaker Agent will pool trips and form groups automatically
+      console.log('🔍 Finding matches with MatchMaker Agent...')
+      
+      const matchResponse = await fetch(`${agentServiceUrl}/api/find-matches`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUserId,
+          preferences: extractData.preferences
         }),
       })
       
       if (!matchResponse.ok) {
         const errorData = await matchResponse.json()
-        throw new Error(errorData.error || 'Failed to process your trip description')
+        throw new Error(errorData.detail || 'Failed to find matches')
       }
       
       const matchData = await matchResponse.json()
-      console.log('📊 AI Match results:', matchData)
+      console.log('📊 MatchMaker results:', matchData)
 
       if (matchData.matches && matchData.matches.length > 0) {
-        console.log(`✅ Found ${matchData.matches.length} matches!`)
+        console.log(`✅ Found ${matchData.matches.length} compatible groups!`)
         setMatches(matchData.matches)
       } else {
-        console.log('⚠️ No matches found')
+        console.log('⚠️ No matches found yet. Your trip is pooled, waiting for more travelers...')
         setMatches([])
+        alert('🎯 Your trip preferences are saved! We\'ll notify you when we find compatible travelers. The MatchMaker Agent is pooling trips now.')
       }
       
     } catch (error: any) {
-      console.error('Error processing trip description:', error)
-      alert(`Failed to find matches: ${error.message || 'Please try again.'}`)
+      console.error('❌ Error processing trip with agents:', error)
+      alert(`Failed to process your trip: ${error.message || 'Please try again.'}`)
       setMatches([])
     } finally {
       setLoadingMatches(false)
