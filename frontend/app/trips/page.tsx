@@ -1,13 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Search, MapPin, Users, Calendar, DollarSign, Filter, X, Sparkles, Plus } from 'lucide-react'
+import { Search, MapPin, Users, Calendar, DollarSign, Filter, X, Sparkles, Plus, Loader2 } from 'lucide-react'
 import { mockTrips } from '@/lib/mock-data'
 import { formatDate, calculateDays } from '@/lib/utils'
-import NLPTripModal from '@/components/NLPTripModal'
-import MatchResultsModal from '@/components/MatchResultsModal'
+import AgentTripModal from '@/components/AgentTripModal'
 import CreateGroupModal from '@/components/CreateGroupModal'
+import ProcessingTripCard from '@/components/ProcessingTripCard'
+import GroupChatModal from '@/components/GroupChatModal'
+import ProcessingStatusModal from '@/components/ProcessingStatusModal'
+import { AgentGroup } from '@/lib/supabase'
+import { useGroupStatus } from '@/hooks/useGroupStatus'
 
 export default function TripsPage() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -16,141 +20,53 @@ export default function TripsPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>('all')
   const [showFilters, setShowFilters] = useState(false)
 
-  // Join Trip Modal States
-  const [showJoinModal, setShowJoinModal] = useState(false)
-  const [showMatchResults, setShowMatchResults] = useState(false)
-  const [matches, setMatches] = useState<any[]>([])
-  const [loadingMatches, setLoadingMatches] = useState(false)
-  const [userId, setUserId] = useState<string>('')
-  
-  // Create Group Modal State
+  // Modal States
+  const [showAgentModal, setShowAgentModal] = useState(false)
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false)
+  const [showChatModal, setShowChatModal] = useState(false)
+  const [showStatusModal, setShowStatusModal] = useState(false)
+  
+  // Processing Trip State
+  const [processingGroup, setProcessingGroup] = useState<AgentGroup | null>(null)
+  const [userId, setUserId] = useState<string>('')
+  const [isProcessing, setIsProcessing] = useState(false) // Track if user submitted a trip
 
-  // Initialize user (mock - in production would come from auth)
-  useState(() => {
-    const storedUserId = localStorage.getItem('wanderlink_user_id')
-    if (!storedUserId) {
-      const newUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-      localStorage.setItem('wanderlink_user_id', newUserId)
-      setUserId(newUserId)
-    } else {
+  // Initialize user ID and check for existing group
+  useEffect(() => {
+    const storedUserId = localStorage.getItem('wanderlink_agent_user_id')
+    if (storedUserId) {
       setUserId(storedUserId)
+    }
+  }, [])
+
+  // Check if user has a processing group
+  const { group, inGroup } = useGroupStatus({
+    userId,
+    enabled: !!userId && !processingGroup,
+    pollInterval: 10000, // Check every 10 seconds
+    onGroupFound: (group) => {
+      setProcessingGroup(group)
+      setIsProcessing(false) // Stop showing processing button
     }
   })
 
-  const handleJoinTrip = () => {
-    setShowJoinModal(true)
-  }
-
-  // Handle NLP trip description submission
-  const handleNLPSubmit = async (nlpInput: string) => {
-    console.log('🔎 Processing NLP input for trip matching...')
-    console.log('📝 User message:', nlpInput)
-    
-    setLoadingMatches(true)
-    setShowMatchResults(true)
-
-    try {
-      // Generate a user ID directly
-      const currentUserId = localStorage.getItem('wanderlink_user_id') || 
-        `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-      
-      console.log('✅ Using user ID:', currentUserId)
-      localStorage.setItem('wanderlink_user_id', currentUserId)
-      setUserId(currentUserId)
-
-      // STEP 1: Send to Travel Agent on Agentverse AND extract preferences locally
-      console.log('🤖 Sending request to Travel Agent on Agentverse...')
-      const agentServiceUrl = process.env.NEXT_PUBLIC_AGENT_SERVICE_URL || 'http://localhost:8000'
-      
-      // Use hybrid endpoint: Extract preferences + Send to Agentverse
-      const extractResponse = await fetch(`${agentServiceUrl}/api/extract-preferences-and-send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: currentUserId,
-          nlpInput: nlpInput
-        }),
-      })
-      
-      if (!extractResponse.ok) {
-        const errorData = await extractResponse.json()
-        throw new Error(errorData.detail || 'Failed to send to Travel Agent on Agentverse')
-      }
-      
-      const extractData = await extractResponse.json()
-      console.log('✅ Travel Agent extracted preferences:', extractData.preferences)
-      console.log('✅ Message sent to Agentverse:', extractData.agent_response)
-      console.log('📋 Task ID for tracking:', extractData.task_id)
-
-      // STEP 2: Find matches using the extracted preferences
-      // The MatchMaker Agent will pool trips and form groups automatically
-      console.log('🔍 Finding matches with MatchMaker Agent...')
-      
-      const matchResponse = await fetch(`${agentServiceUrl}/api/find-matches`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: currentUserId,
-          preferences: extractData.preferences
-        }),
-      })
-      
-      if (!matchResponse.ok) {
-        const errorData = await matchResponse.json()
-        throw new Error(errorData.detail || 'Failed to find matches')
-      }
-      
-      const matchData = await matchResponse.json()
-      console.log('📊 MatchMaker results:', matchData)
-
-      if (matchData.matches && matchData.matches.length > 0) {
-        console.log(`✅ Found ${matchData.matches.length} compatible groups!`)
-        setMatches(matchData.matches)
-      } else {
-        console.log('⚠️ No matches found yet. Your trip is pooled, waiting for more travelers...')
-        setMatches([])
-        alert('🎯 Your trip preferences are saved! We\'ll notify you when we find compatible travelers. The MatchMaker Agent is pooling trips now.')
-      }
-      
-    } catch (error: any) {
-      console.error('❌ Error processing trip with agents:', error)
-      alert(`Failed to process your trip: ${error.message || 'Please try again.'}`)
-      setMatches([])
-    } finally {
-      setLoadingMatches(false)
+  useEffect(() => {
+    if (inGroup && group && !processingGroup) {
+      setProcessingGroup(group)
+      setIsProcessing(false)
     }
+  }, [inGroup, group, processingGroup])
+
+  const handleFindMatches = () => {
+    setShowAgentModal(true)
   }
 
-  const handleJoinSpecificTrip = async (groupId: string) => {
-    try {
-      console.log('🚀 Joining group:', groupId)
-      
-      const response = await fetch(`/api/groups/${groupId}/join`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to join group')
-      }
-
-      console.log('✅ Successfully joined group:', data)
-      alert('🎉 Successfully joined the group! Check your dashboard to see your new travel buddies.')
-      
-      // Close modal and refresh
-      setShowMatchResults(false)
-    } catch (error: any) {
-      console.error('Error joining group:', error)
-      alert(`Failed to join group: ${error.message}`)
-    }
+  const handleOpenChat = () => {
+    setShowChatModal(true)
   }
 
-  const handleSaveMatch = async (tripId: string) => {
-    // Save match to favorites (implement later)
-    alert('Trip saved to your favorites!')
+  const handleViewStatus = () => {
+    setShowStatusModal(true)
   }
 
   const filteredTrips = mockTrips.filter((trip) => {
@@ -224,12 +140,23 @@ export default function TripsPage() {
           </button>
           
           <button
-            onClick={handleJoinTrip}
+            onClick={handleFindMatches}
             className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-8 py-4 rounded-xl font-black border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 transition-all flex items-center gap-2 text-lg"
           >
             <Sparkles className="w-6 h-6" />
             FIND MY MATCHES
           </button>
+
+          {/* Show Processing Preferences button when user is waiting for group */}
+          {isProcessing && !processingGroup && (
+            <button
+              onClick={handleViewStatus}
+              className="bg-gradient-to-r from-yellow-400 to-orange-400 text-white px-8 py-4 rounded-xl font-black border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 transition-all flex items-center gap-2 text-lg animate-pulse"
+            >
+              <Loader2 className="w-6 h-6 animate-spin" />
+              PROCESSING PREFERENCES
+            </button>
+          )}
         </div>
 
         {/* Filters Button & Tags */}
@@ -315,6 +242,17 @@ export default function TripsPage() {
           </p>
         </div>
 
+        {/* Processing Trip Card (if exists) */}
+        {processingGroup && (
+          <div className="mb-8">
+            <h2 className="text-2xl font-black mb-4">🔄 YOUR PROCESSING TRIP</h2>
+            <ProcessingTripCard 
+              group={processingGroup} 
+              onOpenChat={handleOpenChat}
+            />
+          </div>
+        )}
+
         {/* Trips Grid */}
         {filteredTrips.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -337,25 +275,41 @@ export default function TripsPage() {
         isOpen={showCreateGroupModal}
         onClose={() => setShowCreateGroupModal(false)}
         onSuccess={() => {
-          // Refresh page or update UI
-          alert('Group created! Now visible in Find My Matches.')
+          alert('Group created successfully!')
+          setShowCreateGroupModal(false)
         }}
       />
       
-      <NLPTripModal
-        isOpen={showJoinModal}
-        onClose={() => setShowJoinModal(false)}
-        onSubmit={handleNLPSubmit}
+      <AgentTripModal
+        isOpen={showAgentModal}
+        onClose={() => setShowAgentModal(false)}
+        onSubmit={() => {
+          // User submitted trip description - mark as processing
+          setIsProcessing(true)
+        }}
+        onGroupFound={(group) => {
+          console.log('Group found:', group)
+          setProcessingGroup(group)
+          setShowAgentModal(false)
+          setIsProcessing(false)
+          // Card will appear automatically below
+        }}
       />
 
-      <MatchResultsModal
-        isOpen={showMatchResults}
-        onClose={() => setShowMatchResults(false)}
-        matches={matches}
-        loading={loadingMatches}
-        onJoinTrip={handleJoinSpecificTrip}
-        onSaveMatch={handleSaveMatch}
+      <ProcessingStatusModal
+        isOpen={showStatusModal}
+        onClose={() => setShowStatusModal(false)}
+        status={processingGroup ? 'matched' : 'waiting'}
+        destination={group?.destination}
       />
+
+      {processingGroup && (
+        <GroupChatModal
+          isOpen={showChatModal}
+          onClose={() => setShowChatModal(false)}
+          group={processingGroup}
+        />
+      )}
     </div>
   )
 }
