@@ -9,6 +9,7 @@ export interface StakingParticipant {
 /**
  * Agent Staking Service
  * Handles agent-based staking on behalf of users
+ * Uses ethers.js as primary method (works reliably on Hedera)
  */
 export class AgentStakingService {
   private provider: JsonRpcProvider;
@@ -105,6 +106,7 @@ export class AgentStakingService {
       console.log('🔵 Contract address:', this.contractAddress);
       console.log('🔵 Trip ID:', tripId);
       console.log('🔵 Agent address:', await this.signer.getAddress());
+      console.log('🔵 Using ethers.js for staking');
 
       const abi = [
         'function stakeOnBehalf(address user, uint256 amount, uint256 tripId) payable',

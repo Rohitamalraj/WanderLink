@@ -177,9 +177,9 @@ contract AgentStaking {
         
         balances[msg.sender] -= amount;
         
-        // Try transfer, but don't revert if it fails
-        // This allows balance to be reduced even if transfer fails
-        payable(msg.sender).transfer(amount);
+        // Use send() for Hedera - returns false on failure but doesn't revert
+        bool success = payable(msg.sender).send(amount);
+        require(success, "Transfer failed");
         
         emit Withdrawn(msg.sender, amount);
     }
@@ -187,6 +187,7 @@ contract AgentStaking {
     /**
      * @dev Owner-assisted withdrawal for users (Hedera-compatible)
      * Owner can help users withdraw when direct transfer fails
+     * Uses .call{value}() pattern like ShowUpEvent for Hedera compatibility
      */
     function ownerWithdrawFor(address user, uint256 amount) external onlyOwner nonReentrant {
         require(amount > 0, "Amount must be positive");
@@ -194,8 +195,9 @@ contract AgentStaking {
         
         balances[user] -= amount;
         
-        // Owner receives the HBAR and must send to user off-chain
-        payable(owner).transfer(amount);
+        // Owner receives the HBAR - use .call{value}() for Hedera (like ShowUpEvent)
+        (bool success, ) = payable(owner).call{value: amount}("");
+        require(success, "Transfer to owner failed");
         
         emit Withdrawn(user, amount);
     }
@@ -227,10 +229,12 @@ contract AgentStaking {
     
     /**
      * @dev Emergency withdraw (only owner, only if paused)
+     * Uses .call{value}() for Hedera compatibility
      */
     function emergencyWithdraw() external onlyOwner {
         require(paused, "Must be paused");
-        payable(owner).transfer(address(this).balance);
+        (bool success, ) = payable(owner).call{value: address(this).balance}("");
+        require(success, "Emergency transfer failed");
     }
     
     /**

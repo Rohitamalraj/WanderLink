@@ -213,6 +213,15 @@ REASONING: [Your detailed reasoning in 2-3 sentences]`;
           console.log('✅ Agent staking completed successfully!');
           console.log('Transactions:', stakingResult.transactions);
           
+          // Log HashScan links for verification
+          console.log('\n' + '='.repeat(60));
+          console.log('🔗 TRANSACTION LINKS (HashScan):');
+          console.log('='.repeat(60));
+          stakingResult.transactions.forEach((tx: string, i: number) => {
+            console.log(`User ${i + 1}: https://hashscan.io/testnet/transaction/${tx}`);
+          });
+          console.log('='.repeat(60) + '\n');
+          
           // Update pool status to completed
           participantPool.setStatus('completed');
           

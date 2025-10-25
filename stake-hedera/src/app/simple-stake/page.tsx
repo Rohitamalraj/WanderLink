@@ -21,6 +21,7 @@ export default function SimpleStakePage() {
   const [approving, setApproving] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
   const [userBalance, setUserBalance] = useState('0');
+  const [transactions, setTransactions] = useState<string[]>([]);
 
   const { address, isConnected, approveAgent, checkAllowance } = useWallet();
 
@@ -185,6 +186,22 @@ export default function SimpleStakePage() {
         throw new Error(data.error);
       }
 
+      // Store transactions and log to console
+      if (data.transactions && data.transactions.length > 0) {
+        setTransactions(data.transactions);
+        console.log('\n' + '='.repeat(60));
+        console.log('✅ AGENT STAKING COMPLETE!');
+        console.log('='.repeat(60));
+        console.log(`\n${data.transactions.length} transactions successful:\n`);
+        data.transactions.forEach((tx: string, i: number) => {
+          const hashscanUrl = `https://hashscan.io/testnet/transaction/${tx}`;
+          console.log(`User ${i + 1}:`);
+          console.log(`  Transaction Hash: ${tx}`);
+          console.log(`  View on HashScan: ${hashscanUrl}\n`);
+        });
+        console.log('='.repeat(60) + '\n');
+      }
+
       // Refresh pool data
       const poolResponse = await fetch(`/api/pool/status?wallet=${address}`);
       const poolResult = await poolResponse.json();
@@ -297,7 +314,7 @@ export default function SimpleStakePage() {
         throw new Error(data.error || 'Withdrawal failed');
       }
 
-      alert(`✅ Withdrawal successful!\n\nAmount: ${data.amount} HBAR\n\nTransaction: ${data.transactionHash}\n\nView on HashScan:\n${data.hashscanUrl}`);
+      alert(`✅ Withdrawal successful!\n\n${data.message}\n\nAmount: ${data.amount} HBAR\nReturned to: Agent Wallet\n\nTransaction: ${data.transactionHash}\n\nView on HashScan:\n${data.hashscanUrl}`);
 
       // Refresh balance
       await checkUserBalance();
@@ -546,10 +563,21 @@ export default function SimpleStakePage() {
                   )}
 
                   {negotiating && (
-                    <div className="mt-6 text-center p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                      <p className="text-blue-800 dark:text-blue-200">
-                        🤖 AI agents are negotiating the best budget and stake percentage...
-                      </p>
+                    <div className="mt-6 text-center p-6 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                        <p className="text-blue-800 dark:text-blue-200 font-semibold">
+                          🤖 AI Agents Working...
+                        </p>
+                        <div className="text-sm text-blue-600 dark:text-blue-400 space-y-1">
+                          <p>✓ Analyzing participant budgets</p>
+                          <p>✓ Negotiating fair terms</p>
+                          <p className="animate-pulse">⏳ Agent staking in progress...</p>
+                        </div>
+                        <p className="text-xs text-blue-500 dark:text-blue-500 mt-2">
+                          This may take 30-60 seconds
+                        </p>
+                      </div>
                     </div>
                   )}
 
@@ -719,20 +747,50 @@ export default function SimpleStakePage() {
                         {poolData.participants.map((p: any, i: number) => (
                           <div
                             key={i}
-                            className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
+                            className="flex flex-col p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
                           >
-                            <span className="text-sm text-gray-700 dark:text-gray-300">
-                              {p.name}
-                            </span>
-                            {p.hasStaked ? (
-                              <span className="text-green-600 dark:text-green-400 flex items-center gap-1">
-                                <CheckCircle className="w-4 h-4" />
-                                Staked
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                {p.name}
                               </span>
-                            ) : (
-                              <span className="text-yellow-600 dark:text-yellow-400">
-                                Pending
-                              </span>
+                              {poolData.status === 'completed' && transactions[i] ? (
+                                <span className="text-green-600 dark:text-green-400 flex items-center gap-1">
+                                  <CheckCircle className="w-4 h-4" />
+                                  Staked
+                                </span>
+                              ) : poolData.status === 'negotiating' ? (
+                                <span className="text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Staking...
+                                </span>
+                              ) : p.hasStaked ? (
+                                <span className="text-green-600 dark:text-green-400 flex items-center gap-1">
+                                  <CheckCircle className="w-4 h-4" />
+                                  Staked
+                                </span>
+                              ) : (
+                                <span className="text-yellow-600 dark:text-yellow-400">
+                                  Pending
+                                </span>
+                              )}
+                            </div>
+                            {poolData.status === 'completed' && transactions[i] && (
+                              <div className="mt-2 space-y-1">
+                                <div className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+                                  {transactions[i].substring(0, 10)}...{transactions[i].substring(transactions[i].length - 8)}
+                                </div>
+                                <a
+                                  href={`https://hashscan.io/testnet/transaction/${transactions[i]}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                                >
+                                  <span>View on HashScan</span>
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                  </svg>
+                                </a>
+                              </div>
                             )}
                           </div>
                         ))}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ethers } from 'ethers';
 import AgentStakingArtifact from '../../../../artifacts/contracts/AgentStaking.sol/AgentStaking.json';
+import { getHederaContractService } from '@/lib/hedera-contract';
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,37 +40,35 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('🚀 Starting withdrawal process...');
+    console.log(`   📝 Withdrawing ${balanceHBAR} HBAR for user ${userAddress}`);
+    console.log('   💰 Funds will be returned to agent wallet');
 
-    // Step 1: Pause contract
-    console.log('   1. Pausing contract...');
-    const pauseTx = await contract.setPaused(true);
-    await pauseTx.wait();
+    // Use Hedera SDK for withdrawal (fixes JSON-RPC issues)
+    console.log('   1. Using Hedera SDK for withdrawal...');
+    
+    const hederaService = getHederaContractService();
+    const result = await hederaService.ownerWithdrawFor(userAddress, balance);
 
-    // Step 2: Emergency withdraw to owner
-    console.log('   2. Emergency withdrawing...');
-    const withdrawTx = await contract.emergencyWithdraw();
-    await withdrawTx.wait();
+    if (!result.success) {
+      throw new Error('Withdrawal transaction failed');
+    }
 
-    // Step 3: Send to user
-    console.log('   3. Sending to user...');
-    const sendTx = await wallet.sendTransaction({
-      to: userAddress,
-      value: balance
-    });
-    await sendTx.wait();
+    console.log(`✅ Withdrawal complete! ${balanceHBAR} HBAR returned to agent wallet.`);
+    console.log(`   Transaction ID: ${result.transactionId}`);
 
-    // Step 4: Unpause contract
-    console.log('   4. Unpausing contract...');
-    const unpauseTx = await contract.setPaused(false);
-    await unpauseTx.wait();
-
-    console.log('✅ Withdrawal complete!');
+    // Convert Hedera transaction ID to hash for HashScan
+    // Format: 0.0.xxxxx@timestamp.nanoseconds
+    const txId = result.transactionId;
+    const hashscanUrl = `https://hashscan.io/testnet/transaction/${txId}`;
 
     return NextResponse.json({
       success: true,
       amount: balanceHBAR,
-      transactionHash: sendTx.hash,
-      hashscanUrl: `https://hashscan.io/testnet/transaction/${sendTx.hash}`
+      userAddress: userAddress,
+      agentAddress: wallet.address,
+      transactionId: result.transactionId,
+      hashscanUrl: hashscanUrl,
+      message: `${balanceHBAR} HBAR returned to agent wallet`
     });
 
   } catch (error: any) {

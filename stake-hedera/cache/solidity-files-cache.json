@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "C:\\Users\\russe\\OneDrive\\Desktop\\wndrlnk\\stake-hedera\\contracts\\AgentStaking.sol": {
-      "lastModificationDate": 1761408884664,
-      "contentHash": "54d9edf86ac43acf26cebeec3b01c312",
+      "lastModificationDate": 1761427965464,
+      "contentHash": "55bb96adfffe50e75090b6108a3c8745",
       "sourceName": "contracts/AgentStaking.sol",
       "solcConfig": {
         "version": "0.8.9",
