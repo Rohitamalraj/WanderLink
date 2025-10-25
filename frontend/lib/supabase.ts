@@ -70,3 +70,35 @@ export interface UserAgentState {
   created_at: string
   updated_at: string
 }
+
+export interface AgentGroup {
+  id?: string
+  group_id: string
+  destination: string
+  members: string[]
+  member_count: number
+  travelers?: any[]
+  itinerary: string
+  status: 'waiting' | 'matched' | 'active' | 'completed'
+  created_at: string
+  updated_at?: string
+}
+
+export interface GroupMessage {
+  id: string
+  group_id: string
+  user_id: string
+  message: string
+  is_agent: boolean
+  created_at: string
+}
+
+export interface PlannerBridgeMessage {
+  id: string
+  user_id: string
+  message: string
+  is_agent: boolean
+  sender: string
+  created_at: string
+  read_at?: string
+}
