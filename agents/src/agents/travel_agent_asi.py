@@ -39,6 +39,18 @@ async def handle_message(ctx: Context, sender: str, msg: ChatMessage):
             text += item.text.strip() + " "
 
     ctx.logger.info(f"📨 Received user message: {text}")
+    
+    # Extract USER_ID if present in message
+    user_id = sender  # Default to sender address
+    if "[USER_ID:" in text:
+        try:
+            user_id = text.split("[USER_ID:")[1].split("]")[0]
+            text = text.split("[USER_ID:")[0].strip()  # Remove USER_ID from text
+            ctx.logger.info(f"👤 Extracted user_id: {user_id}")
+        except:
+            pass
+
+    ctx.logger.info(f"📨 Received user message: {text}")
 
     # Use ASI-1 to extract structured preferences
     try:
@@ -91,7 +103,7 @@ async def handle_message(ctx: Context, sender: str, msg: ChatMessage):
 
         # Send structured preferences to MatchMakerAgent
         trip_data = {
-            "user_id": sender,
+            "user_id": user_id,  # Use extracted user_id (test_xxx) instead of sender address
             "preferences": preferences
         }
         

@@ -2,6 +2,7 @@ from datetime import datetime
 from uuid import uuid4
 import json
 import os
+import aiohttp
 from uagents import Agent, Context, Protocol
 from uagents_core.contrib.protocols.chat import (
     ChatAcknowledgement,
@@ -14,14 +15,103 @@ from uagents_core.contrib.protocols.chat import (
 # PLANNER CONFIGURATION
 # -------------------------
 AGENT_NAME = "WanderLink_Planner"
+# Webhook URL from environment variable (set in Agentverse secrets)
+# Example: https://wanderlink.vercel.app/api/agent-webhook
+WEBHOOK_URL = os.getenv("WEBHOOK_URL", "")
 
-# Agent Service URL (for Supabase proxy)
-AGENT_SERVICE_URL = os.getenv("AGENT_SERVICE_URL", "http://localhost:8000")
+# Supabase configuration
+# TEMPORARY: Hardcoded for testing - REMOVE BEFORE PRODUCTION!
+SUPABASE_URL = os.getenv("SUPABASE_URL", "https://xbspnzviiefekzosukfa.supabase.co")
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhic3BuenZpaWVmZWt6b3N1a2ZhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MTA2MTA1OSwiZXhwIjoyMDc2NjM3MDU5fQ.L1Wx7upo7-BFG8d_1Vm2belPBNDIcXfUU4jwlAI6Wdw")
 
 agent = Agent(name=AGENT_NAME)
 protocol = Protocol(spec=chat_protocol_spec)
 
 GROUPS_KEY = "active_groups"
+
+# -------------------------
+# HELPER FUNCTIONS
+# -------------------------
+async def store_in_supabase(ctx: Context, group_data: dict):
+    """Store group directly in Supabase database"""
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        ctx.logger.warning(f"⚠️ Supabase not configured, skipping database storage")
+        return False
+    
+    ctx.logger.info(f"💾 Storing group in Supabase...")
+    
+    try:
+        # Prepare data for travel_groups table
+        supabase_data = {
+            "group_id": group_data["group_id"],
+            "destination": group_data.get("destination") or group_data.get("group_info", {}).get("destination"),
+            "members": group_data["members"],
+            "member_count": len(group_data["members"]),
+            "itinerary": group_data["itinerary"],
+            "travelers": group_data.get("travelers", []),
+            "status": "matched",
+            "created_at": group_data["created_at"]
+        }
+        
+        # Insert into Supabase using REST API
+        url = f"{SUPABASE_URL}/rest/v1/travel_groups"
+        headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "application/json",
+            "Prefer": "return=representation"
+        }
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=supabase_data, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as response:
+                response_text = await response.text()
+                
+                if response.status in [200, 201]:
+                    ctx.logger.info(f"✅ Group stored in Supabase successfully!")
+                    return True
+                else:
+                    ctx.logger.warning(f"⚠️ Supabase storage failed with status {response.status}")
+                    ctx.logger.warning(f"📄 Response: {response_text[:200]}")
+                    return False
+                    
+    except Exception as e:
+        ctx.logger.error(f"❌ Supabase storage error: {type(e).__name__}: {str(e)}")
+        return False
+
+async def send_webhook(ctx: Context, webhook_data: dict):
+    """Send group creation data to frontend webhook"""
+    if not WEBHOOK_URL:
+        ctx.logger.warning(f"⚠️ WEBHOOK_URL not configured, skipping webhook")
+        return False
+    
+    ctx.logger.info(f"🌐 Attempting webhook to: {WEBHOOK_URL}")
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                WEBHOOK_URL,
+                json=webhook_data,
+                headers={'Content-Type': 'application/json'},
+                timeout=aiohttp.ClientTimeout(total=10)
+            ) as response:
+                response_text = await response.text()
+                ctx.logger.info(f"📡 Webhook response status: {response.status}")
+                
+                if response.status == 200:
+                    ctx.logger.info(f"✅ Webhook sent successfully!")
+                    ctx.logger.info(f"📄 Response: {response_text[:200]}")
+                    return True
+                else:
+                    ctx.logger.warning(f"⚠️ Webhook failed with status {response.status}")
+                    ctx.logger.warning(f"📄 Response: {response_text[:200]}")
+                    return False
+    except aiohttp.ClientError as e:
+        ctx.logger.error(f"❌ Webhook network error: {type(e).__name__}: {str(e)}")
+        return False
+    except Exception as e:
+        ctx.logger.error(f"❌ Webhook unexpected error: {type(e).__name__}: {str(e)}")
+        ctx.logger.exception(e)
+        return False
 
 # -------------------------
 # MESSAGE HANDLERS
@@ -65,50 +155,7 @@ async def handle_group_creation(ctx: Context, sender: str, msg: ChatMessage):
         ctx.logger.info(f"📋 Itinerary: {len(itinerary)} characters")
         ctx.logger.info(f"{'='*60}\n")
         
-        # Store group in Supabase via Agent Service API
-        try:
-            import urllib.request
-            import urllib.error
-            
-            # Prepare group data for API
-            group_data_payload = {
-                'group_id': group_id,
-                'name': f"{group_info.get('destination', 'Unknown')} Adventure Group - {datetime.now().strftime('%b %Y')}",
-                'destination': group_info.get('destination', 'Unknown'),
-                'itinerary': itinerary,
-                'member_count': len(user_ids),
-                'members': user_ids,
-                'travelers': travelers,
-                'group_info': group_info
-            }
-            
-            # Call agent service to store group in Supabase
-            api_url = f"{AGENT_SERVICE_URL}/api/store-group"
-            req = urllib.request.Request(
-                api_url,
-                data=json.dumps(group_data_payload).encode('utf-8'),
-                headers={'Content-Type': 'application/json'},
-                method='POST'
-            )
-            
-            try:
-                with urllib.request.urlopen(req, timeout=10) as response:
-                    result = json.loads(response.read().decode('utf-8'))
-                    ctx.logger.info(f"💾 Group stored in Supabase via API: {group_id}")
-                    ctx.logger.info(f"👥 Added {len(user_ids)} members to database")
-                    ctx.logger.info(f"💬 Stored welcome message and itinerary")
-            except urllib.error.HTTPError as http_err:
-                ctx.logger.warning(f"⚠️ API error storing group: {http_err.code}")
-            except urllib.error.URLError as url_err:
-                ctx.logger.warning(f"⚠️ Cannot reach agent service: {url_err.reason}")
-            except Exception as api_err:
-                ctx.logger.warning(f"⚠️ Error calling API: {api_err}")
-                
-        except Exception as db_error:
-            ctx.logger.error(f"❌ Group storage error: {db_error}")
-            # Continue without database - use local storage
-        
-        # Also store in local storage as backup
+        # Store group in database
         groups = ctx.storage.get(GROUPS_KEY)
         if groups is None:
             groups = {}
@@ -145,7 +192,7 @@ async def handle_group_creation(ctx: Context, sender: str, msg: ChatMessage):
 ║          🎉 WANDERLINK TRAVEL GROUP FORMED! 🎉            ║
 ╚═══════════════════════════════════════════════════════════╝
 
-You've been matched with {len(user_ids) - 1} other traveler(s)!
+You've been matched with {len(user_ids) - 1} other traveler(s) for {group_info.get('destination', 'Unknown')}!
 
 📋 GROUP DETAILS:
    • Group ID: {group_id[:16]}...
@@ -215,6 +262,29 @@ Happy travels! 🚀✈️🌍
         ctx.logger.info(f"📊 Delivery: {success_count}/{len(user_ids)} successful")
         ctx.logger.info(f"🆔 Group ID: {group_id[:12]}...")
         ctx.logger.info(f"{'='*60}\n")
+        
+        # Store group in Supabase database
+        group_storage_data = {
+            "group_id": group_id,
+            "destination": group_info.get("destination"),
+            "members": user_ids,
+            "travelers": travelers,
+            "itinerary": itinerary,
+            "group_info": group_info,
+            "created_at": datetime.utcnow().isoformat(),
+            "sender": "planner_agent",
+            "type": "group_created"
+        }
+        
+        ctx.logger.info(f"💾 Storing group in database...")
+        supabase_success = await store_in_supabase(ctx, group_storage_data)
+        
+        if supabase_success:
+            ctx.logger.info(f"✅ Group successfully stored in Supabase!")
+            ctx.logger.info(f"📱 Frontend will automatically detect the new group")
+        else:
+            ctx.logger.error(f"❌ Failed to store group in Supabase")
+            ctx.logger.error(f"⚠️ Group members were notified but group may not appear in frontend")
         
     except json.JSONDecodeError as e:
         ctx.logger.error(f"❌ Invalid JSON from MatchMaker")
