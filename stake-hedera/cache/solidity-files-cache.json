@@ -1,0 +1,77 @@
+{
+  "_format": "hh-sol-cache-2",
+  "files": {
+    "C:\\Users\\russe\\OneDrive\\Desktop\\wndrlnk\\stake-hedera\\contracts\\AgentStaking.sol": {
+      "lastModificationDate": 1761408884664,
+      "contentHash": "54d9edf86ac43acf26cebeec3b01c312",
+      "sourceName": "contracts/AgentStaking.sol",
+      "solcConfig": {
+        "version": "0.8.9",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "london",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.9"
+      ],
+      "artifacts": [
+        "AgentStaking"
+      ]
+    },
+    "C:\\Users\\russe\\OneDrive\\Desktop\\wndrlnk\\stake-hedera\\contracts\\SimpleStaking.sol": {
+      "lastModificationDate": 1761404424388,
+      "contentHash": "15774ed9a263ca0f0960a7bbef2eee98",
+      "sourceName": "contracts/SimpleStaking.sol",
+      "solcConfig": {
+        "version": "0.8.9",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "london",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.9"
+      ],
+      "artifacts": [
+        "SimpleStaking"
+      ]
+    }
+  }
+}

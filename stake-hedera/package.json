@@ -1,0 +1,46 @@
+{
+  "name": "hedera-stake-a2a",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Multi-agent staking application with A2A communication on Hedera",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "compile:contract": "hardhat compile",
+    "check:env": "node scripts/check-env.js",
+    "deploy:contract": "hardhat run scripts/deploy-basic.js"
+  },
+  "dependencies": {
+    "@hashgraph/sdk": "^2.49.0",
+    "@langchain/core": "^0.3.0",
+    "@langchain/openai": "^0.3.0",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.0",
+    "ethers": "^6.15.0",
+    "hedera-agent-kit": "latest",
+    "langchain": "^0.3.0",
+    "lucide-react": "^0.263.1",
+    "next": "^14.2.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "tailwind-merge": "^0.3.0"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^3.0.0",
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.0",
+    "dotenv": "^17.2.3",
+    "eslint": "^8.0.0",
+    "eslint-config-next": "^14.2.0",
+    "hardhat": "^2.26.3",
+    "postcss": "^8.4.0",
+    "solc": "^0.8.9",
+    "tailwindcss": "^3.4.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  }
+}
