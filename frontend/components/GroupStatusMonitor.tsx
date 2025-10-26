@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useGroupStatus } from '@/hooks/useGroupStatus';
-import { AgentGroup } from '@/lib/supabase';
+import { AgentGroup } from '@/lib/offchain-base';
 
 interface GroupStatusMonitorProps {
   userId: string;

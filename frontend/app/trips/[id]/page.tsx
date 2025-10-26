@@ -16,7 +16,7 @@ import {
   Share2,
   ChevronRight,
 } from 'lucide-react'
-import { mockTrips, mockUsers } from '@/lib/mock-data'
+import { mockTrips, mockUsers } from '@/lib/offchain-mdata'
 import { formatDate, calculateDays } from '@/lib/utils'
 import AiMatchFinder from '@/components/ai/AiMatchFinder'
 import AiItineraryPlanner from '@/components/ai/AiItineraryPlanner'

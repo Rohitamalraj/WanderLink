@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useAccount } from 'wagmi'
 import { X, ExternalLink, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { getJSON } from '@/lib/localStorage'
+import { getJSON } from '@/lib/offchain-Storage'
 
 export function ProfilePhotoNFT() {
   const { address } = useAccount()

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../auth/[...nextauth]/route'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/offchain-base'
 
 // Create a new travel group
 export async function POST(req: NextRequest) {

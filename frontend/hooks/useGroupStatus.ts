@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { AgentGroup, GroupMessage } from '@/lib/supabase';
+import { AgentGroup, GroupMessage } from '@/lib/offchain-base';
 
 interface GroupStatusResponse {
   status: 'waiting' | 'in_group';

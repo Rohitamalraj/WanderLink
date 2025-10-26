@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { MapPin, Users, Shield, Sparkles, ArrowRight, Zap } from 'lucide-react'
-import { mockTrips } from '@/lib/mock-data'
+import { mockTrips } from '@/lib/offchain-mdata'
 import { Header } from '@/components/layout/Header'
 import { useAuth } from '@/contexts/AuthContext'
 

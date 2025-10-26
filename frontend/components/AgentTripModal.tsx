@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { X, Send, Sparkles, Loader2, CheckCircle, Clock } from 'lucide-react'
 import { useGroupStatus } from '@/hooks/useGroupStatus'
-import { AgentGroup } from '@/lib/supabase'
+import { AgentGroup } from '@/lib/offchain-base'
 
 interface AgentTripModalProps {
   isOpen: boolean

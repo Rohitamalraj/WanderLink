@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { MapPin, Users, Calendar, MessageSquare, Eye, Sparkles, Loader2, Link2, Shield, ExternalLink, Coins, CheckCircle } from 'lucide-react'
-import { AgentGroup } from '@/lib/supabase'
+import { AgentGroup } from '@/lib/offchain-base'
 
 interface ProcessingTripCardProps {
   group: AgentGroup

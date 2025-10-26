@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { X, Shield, CheckCircle, Loader2, ExternalLink } from 'lucide-react'
-import { AgentGroup } from '@/lib/supabase'
+import { AgentGroup } from '@/lib/offchain-base'
 import { registerGroupOnChain } from '@/lib/hedera-group'
 
 interface BlockchainRegistrationModalProps {

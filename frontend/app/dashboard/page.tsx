@@ -12,7 +12,7 @@ import {
   Plus,
   ArrowRight,
 } from 'lucide-react'
-import { mockTrips, mockBookings, mockUsers } from '@/lib/mock-data'
+import { mockTrips, mockBookings, mockUsers } from '@/lib/offchain-mdata'
 import { formatDate, calculateDays } from '@/lib/utils'
 import { DiscountCoupons } from '@/components/DiscountCoupons'
 import { ProfilePhotoNFT } from '@/components/ProfilePhotoNFT'

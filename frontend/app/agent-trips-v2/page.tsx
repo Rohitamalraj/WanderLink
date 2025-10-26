@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Sparkles, Send, Users, MapPin, MessageSquare, ExternalLink, Copy, CheckCircle, Clock, Loader2 } from 'lucide-react'
 import { useGroupStatus } from '@/hooks/useGroupStatus'
-import { AgentGroup } from '@/lib/supabase'
+import { AgentGroup } from '@/lib/offchain-base'
 
 export default function ImprovedAgentTripsPage() {
   const [userId, setUserId] = useState<string>('')

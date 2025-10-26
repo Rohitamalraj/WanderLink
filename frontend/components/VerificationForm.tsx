@@ -9,7 +9,7 @@ import Image from 'next/image'
 import { BrowserProvider } from 'ethers'
 import { submitProofOnChain } from '@/lib/zkproof-onchain'
 import { mintDataCoin } from '@/lib/datacoin'
-import { setJSON, safeLocalStorage } from '@/lib/localStorage'
+import { setJSON, safeLocalStorage } from '@/lib/offchain-Storage'
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 const LIGHTHOUSE_API_KEY = process.env.NEXT_PUBLIC_LIGHTHOUSE_API_KEY || ''

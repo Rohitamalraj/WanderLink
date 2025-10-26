@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { X, Send, MessageSquare, Loader2 } from 'lucide-react'
-import { AgentGroup } from '@/lib/supabase'
+import { AgentGroup } from '@/lib/offchain-base'
 
 interface GroupChatModalProps {
   isOpen: boolean
