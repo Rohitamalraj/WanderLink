@@ -85,12 +85,13 @@ export default function AgentTripModal({ isOpen, onClose, onGroupFound, onSubmit
 
       console.log('📥 Response status:', res.status)
 
-      if (!res.ok) {
-        throw new Error('Failed to send message to agent')
-      }
-
       const data = await res.json()
       console.log('✅ Agent response:', data)
+
+      if (!res.ok) {
+        console.error('❌ API Error:', data)
+        throw new Error(data.error || data.errorDetails || 'Failed to send message to agent')
+      }
 
       if (data.success) {
         // Success - start polling for group
@@ -100,6 +101,7 @@ export default function AgentTripModal({ isOpen, onClose, onGroupFound, onSubmit
           onSubmit()
         }
       } else {
+        console.error('❌ Agent failed:', data)
         throw new Error(data.error || 'Agent communication failed')
       }
       

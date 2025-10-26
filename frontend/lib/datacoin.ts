@@ -49,8 +49,12 @@ export async function mintDataCoin(
   console.log('📦 Lighthouse CID:', lighthouseCID);
   
   try {
+    // Declare provider and signer as let so they can be reassigned
+    let provider = signer.provider as ethers.BrowserProvider;
+    let currentSigner = signer;
+    
     // Check current network
-    const network = await signer.provider?.getNetwork();
+    const network = await currentSigner.provider?.getNetwork();
     const currentChainId = Number(network?.chainId);
     console.log('🌐 Current Network:', network?.name, 'Chain ID:', currentChainId);
     
@@ -69,8 +73,13 @@ export async function mintDataCoin(
         });
         console.log('✅ Switched to Sepolia network');
         
-        // Wait a bit for the switch to complete
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Wait for the switch to complete
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Recreate provider and signer after network switch
+        provider = new ethers.BrowserProvider(window.ethereum);
+        currentSigner = await provider.getSigner();
+        console.log('🔄 Provider and signer recreated after network switch');
       } catch (switchError: any) {
         // This error code indicates that the chain has not been added to MetaMask
         if (switchError.code === 4902) {
@@ -92,6 +101,12 @@ export async function mintDataCoin(
               }]
             });
             console.log('✅ Sepolia network added and switched');
+            
+            // Wait and recreate provider/signer after adding network
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            provider = new ethers.BrowserProvider(window.ethereum);
+            currentSigner = await provider.getSigner();
+            console.log('🔄 Provider and signer recreated after adding network');
           } catch (addError) {
             console.error('❌ Failed to add Sepolia network:', addError);
             throw new Error('Please add Sepolia network to your wallet manually');
@@ -103,8 +118,16 @@ export async function mintDataCoin(
       }
     }
     
-    const contract = getDataCoinContract(signer);
-    const userAddress = await signer.getAddress();
+    // Verify we're on the correct network before proceeding
+    const finalNetwork = await provider.getNetwork();
+    console.log('🌐 Final network check:', finalNetwork.chainId.toString());
+    
+    if (finalNetwork.chainId !== BigInt(11155111)) {
+      throw new Error('Network switch failed. Please manually switch to Sepolia and try again.');
+    }
+    
+    const contract = getDataCoinContract(currentSigner);
+    const userAddress = await currentSigner.getAddress();
     
     // Mint amount: 100 tokens (with 18 decimals = 100 * 10^18)
     const mintAmount = ethers.parseEther("100");

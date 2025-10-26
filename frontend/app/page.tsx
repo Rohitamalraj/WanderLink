@@ -48,26 +48,20 @@ export default function HomePage() {
                   </Link>
                 </>
               ) : (
-                // Not logged in - Show browse and sign up CTA
+                // Not logged in - Show browse and get started buttons
                 <>
                   <Link
                     href="/trips"
-                    className="bg-white text-black px-8 py-4 rounded-2xl font-black text-lg border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 transition-all"
+                    className="bg-white text-black px-10 py-5 rounded-2xl font-black text-xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 transition-all"
                   >
                     BROWSE TRIPS
                   </Link>
-                  <div className="text-center">
-                    <p className="text-sm font-bold text-gray-600 mb-3">Sign in to join trips</p>
-                    <div className="inline-block">
-                      {/* Google Login will show in header, this is additional CTA */}
-                      <Link
-                        href="/verify"
-                        className="bg-gradient-to-r from-orange-500 via-pink-500 to-purple-500 text-white px-8 py-4 rounded-2xl font-black text-lg border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 transition-all"
-                      >
-                        GET STARTED
-                      </Link>
-                    </div>
-                  </div>
+                  <Link
+                    href="/verify"
+                    className="bg-gradient-to-r from-orange-500 via-pink-500 to-purple-500 text-white px-10 py-5 rounded-2xl font-black text-xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 transition-all"
+                  >
+                    GET STARTED
+                  </Link>
                 </>
               )}
             </div>

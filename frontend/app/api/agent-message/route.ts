@@ -25,11 +25,15 @@ async function getClient() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { message, agentType = 'planner', groupId, userId } = await request.json();
+    console.log('🚀 Agent API route called');
+    
+    const body = await request.json();
+    const { message, agentType = 'planner', groupId, userId } = body;
 
     console.log('🎯 Agent API called with:', { message, agentType, groupId, userId });
 
     if (!message || typeof message !== 'string') {
+      console.error('❌ Invalid message:', message);
       return NextResponse.json(
         { error: 'Invalid message' },
         { status: 400 }
@@ -48,6 +52,11 @@ export async function POST(request: NextRequest) {
 
     if (!agentAddress) {
       console.error('❌ Agent address not configured for type:', agentType);
+      console.error('Environment variables:', {
+        TRAVEL_AGENT_ADDRESS,
+        MATCHMAKER_ADDRESS,
+        PLANNER_ADDRESS
+      });
       return NextResponse.json(
         { error: `Agent address not configured for type: ${agentType}` },
         { status: 500 }
@@ -56,15 +65,27 @@ export async function POST(request: NextRequest) {
 
     // Get or create the uagent client
     console.log('🔌 Initializing uagent client...');
-    const client = await getClient();
-    console.log('✅ Client initialized');
+    let client;
+    try {
+      client = await getClient();
+      console.log('✅ Client initialized');
+    } catch (clientError) {
+      console.error('❌ Failed to initialize client:', clientError);
+      throw new Error(`Client initialization failed: ${clientError instanceof Error ? clientError.message : 'Unknown error'}`);
+    }
 
     // Include userId in the message for tracking through agent chain
     const messageWithUserId = userId ? `${message} [USER_ID:${userId}]` : message;
     console.log('📤 Sending message to agent:', messageWithUserId);
-    const result = await client.query(agentAddress, messageWithUserId);
-
-    console.log('📥 Agent result:', result);
+    
+    let result;
+    try {
+      result = await client.query(agentAddress, messageWithUserId);
+      console.log('📥 Agent result:', result);
+    } catch (queryError) {
+      console.error('❌ Agent query error:', queryError);
+      throw new Error(`Agent query failed: ${queryError instanceof Error ? queryError.message : 'Unknown error'}`);
+    }
 
     if (result.success) {
       return NextResponse.json({ 
@@ -84,11 +105,13 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     console.error('❌ Agent communication error:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return NextResponse.json(
       { 
         response: 'An error occurred while processing your request.',
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error' 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        errorDetails: error instanceof Error ? error.stack : String(error)
       },
       { status: 500 }
     );

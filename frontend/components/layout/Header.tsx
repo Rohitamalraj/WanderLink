@@ -42,17 +42,6 @@ export function Header() {
               About
             </Link>
           </div>
-
-          {/* Auth Buttons */}
-          <div className="flex items-center space-x-4">
-            {loading ? (
-              <div className="w-10 h-10 animate-pulse bg-gray-200 border-2 border-black"></div>
-            ) : user ? (
-              <UserProfileButton />
-            ) : (
-              <GoogleLoginButton />
-            )}
-          </div>
         </div>
       </nav>
     </header>
