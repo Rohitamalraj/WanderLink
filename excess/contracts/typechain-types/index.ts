@@ -48,3 +48,5 @@ export type { TripEscrow } from "./src/TripEscrow";
 export { TripEscrow__factory } from "./factories/src/TripEscrow__factory";
 export type { TripNFT } from "./src/TripNFT";
 export { TripNFT__factory } from "./factories/src/TripNFT__factory";
+export type { ZKProofVerifier } from "./src/ZKProofVerifier";
+export { ZKProofVerifier__factory } from "./factories/src/ZKProofVerifier__factory";

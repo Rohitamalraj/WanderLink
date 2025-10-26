@@ -1,0 +1,16 @@
+{
+  "network": "sepolia",
+  "chainId": "11155111",
+  "deployer": "0x927C766598a194f66C5c1fa00e05eED7E53562cb",
+  "deployedAt": "2025-10-23T11:55:36.973Z",
+  "contracts": {
+    "ZKProofVerifier": {
+      "address": "0x13Acccb614155A3b82677f0b59e6902D47d5D184",
+      "verified": false
+    },
+    "DataCoin": {
+      "address": "0x834a8369d6cbf91f8e587e1e998d31988e76a03f",
+      "note": "Pre-deployed DataCoin contract from Lighthouse"
+    }
+  }
+}

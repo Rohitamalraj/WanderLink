@@ -1,0 +1,50 @@
+{
+  "name": "wanderlink",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WanderLink - Web3 Social Travel Platform with AI Agents",
+  "scripts": {
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:contracts": "cd contracts && npx hardhat node",
+    "build:frontend": "cd frontend && npm run build",
+    "build:contracts": "cd contracts && npx hardhat compile",
+    "test:contracts": "cd contracts && npm test",
+    "deploy:hedera": "cd contracts && npm run deploy:hedera",
+    "deploy:polygon": "cd contracts && npm run deploy:polygon",
+    "lint": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
+  },
+  "keywords": [
+    "web3",
+    "travel",
+    "ai-agents",
+    "hedera",
+    "polygon",
+    "ethereum",
+    "decentralized",
+    "social-travel"
+  ],
+  "author": "WanderLink Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.2.3",
+    "@types/node": "^20.10.0",
+    "ethers": "^5.7.2",
+    "hardhat": "2.22.0",
+    "prettier": "^3.1.0",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@wagmi/core": "^2.22.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "lucide-react": "^0.546.0",
+    "pdf-parse": "^1.1.1",
+    "require": "^2.4.20"
+  }
+}
